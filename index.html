@@ -208,14 +208,35 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
 .toast { border-radius: 12px; }
 .tablewrap { background: var(--field); border: 1px solid var(--line); border-radius: 14px; }
 th, td { border-bottom-color: var(--line); }
+
+/* Code screen and view-only mode */
+.lock { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px 16px; }
+.lock[hidden] { display: none; }
+.lock form { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.lock h2 { margin: 0; font: 700 22px/1.2 var(--display); color: var(--accent); }
+.lock p { margin: 0; font-size: 14px; color: var(--muted); min-height: 21px; }
+.lock p.err { color: #B3261E; font-weight: 600; }
+.lock input { width: 100%; font: 700 26px/1.2 var(--body); letter-spacing: .4em; text-align: center; padding: 12px; color: var(--accent); background: var(--field); border: 1px solid var(--axis); border-radius: 12px; }
+.lock button { min-height: 46px; background: var(--accent); color: var(--on-accent); border: 0; border-radius: 12px; font-weight: 700; font-size: 15px; }
+.lock button:disabled { opacity: .6; }
+.lock .pick { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.lock .pick button.noey { background: #D6336C; }
+.lock .pick button.poom { background: #1769D2; }
+.who.one { grid-template-columns: minmax(0, 1fr); }
+.viewnote { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.viewnote b { color: var(--accent); }
+.view-only #backup-load { display: none; }
+.view-only #plan .planform, .view-only #plan .plan-actions { display: none; }
 </style>
 
+<div class="lock" id="lock" hidden></div>
 <div class="wrap">
   <header class="top">
     <h1 class="brand">Training Logbook</h1>
     <span class="status" id="status" role="status">Opening your logbook…</span>
   </header>
   <div class="who" id="who" role="group" aria-label="Who is logging" hidden></div>
+  <p class="viewnote" id="viewnote" role="status" hidden></p>
   <div class="grid">
     <section class="pane" id="log" aria-label="Daily log"></section>
     <section class="pane" id="charts" aria-label="Charts" hidden></section>
@@ -225,7 +246,7 @@ th, td { border-bottom-color: var(--line); }
   </div>
   <section class="data" id="data-tools" aria-label="Your data" hidden>
     <h3>Your data</h3>
-    <p class="hint">Everything is saved only in this browser on this device. Back up often and keep the file somewhere safe.</p>
+    <p class="hint" id="data-hint">Everything is saved only in this browser on this device. Back up often and keep the file somewhere safe.</p>
     <div class="data-btns">
       <button type="button" class="btn" id="export-xlsx" hidden>Export to Excel</button>
       <span class="backup" id="backup" hidden>
@@ -299,7 +320,7 @@ th, td { border-bottom-color: var(--line); }
     return p && d.calIn != null ? p.tdee + (d.calOut || 0) - d.calIn : null;
   }
   function profile() { return PROFILES.filter(function (p) { return p.id === state.profile; })[0] || PROFILES[0]; }
-  function fileTag() { return state.mode === 'local' ? profile().id + '-' : ''; }
+  function fileTag() { return state.mode === 'local' || state.mode === 'cloud' ? profile().id + '-' : ''; }
   function loadProfile() {
     state.days = {}; state.customSplits = []; state.plans = []; state.exercise = null; editingPlan = null;
     try {
@@ -314,6 +335,7 @@ th, td { border-bottom-color: var(--line); }
   function switchProfile(id) {
     if (id === state.profile) return;
     flushNow();
+    if (state.mode === 'cloud') { openBook(id); return; }
     state.profile = id;
     try { localStorage.setItem(PROFILE_KEY, id); } catch (e) {}
     loadProfile();
@@ -325,7 +347,8 @@ th, td { border-bottom-color: var(--line); }
   function renderWho() {
     var root = $('who'); root.textContent = ''; root.hidden = false;
     document.documentElement.setAttribute('data-person', state.profile);
-    PROFILES.forEach(function (p) {
+    root.className = 'who' + (state.mode === 'cloud' && cloud.me === 'poom' ? ' one' : '');
+    PROFILES.filter(function (p) { return state.mode !== 'cloud' || cloudBook(p.id); }).forEach(function (p) {
       root.appendChild(h('button', { type: 'button', id: 'who-' + p.id, 'aria-pressed': p.id === state.profile ? 'true' : 'false', onclick: function () { switchProfile(p.id); } }, p.label));
     });
   }
@@ -466,6 +489,7 @@ th, td { border-bottom-color: var(--line); }
     });
   }
   function flush() {
+    if (state.mode === 'cloud') { flushCloud(); return; }
     if (saving) return;
     if (state.mode === 'local') {
       dirty = {};
@@ -489,6 +513,7 @@ th, td { border-bottom-color: var(--line); }
     })();
   }
   function saveSettings() {
+    if (state.mode === 'cloud') { saveCloudSettings(); return; }
     if (state.mode === 'local') { saveLocal(); return; }
     if (col) writeDoc(col.doc('settings'), { customSplits: state.customSplits }).catch(function () { setStatus('Unable to save your workout types', true); });
   }
@@ -1063,7 +1088,8 @@ th, td { border-bottom-color: var(--line); }
     return fmtRow.format(keyToDate(p.start)) + ' to ' + (p.end ? fmtRow.format(keyToDate(p.end)) : 'no end date');
   }
   function savePlans() {
-    if (saveLocal()) setStatus(savedLabel()); else setStatus('Unable to save: this browser is blocking storage', true);
+    if (state.mode === 'cloud') saveCloudSettings();
+    else if (saveLocal()) setStatus(savedLabel()); else setStatus('Unable to save: this browser is blocking storage', true);
     renderPlan();
     renderLog();
   }
@@ -1309,7 +1335,8 @@ th, td { border-bottom-color: var(--line); }
         (Array.isArray(data.customSplits) ? data.customSplits : []).forEach(function (s) {
           s = String(s); if (state.customSplits.indexOf(s) < 0) state.customSplits.push(s);
         });
-        if (saveLocal()) setStatus(savedLabel()); else setStatus('Unable to save: this browser is blocking storage', true);
+        if (state.mode === 'cloud') { keys.forEach(function (k) { dirty[k] = true; }); flushCloud(); saveCloudSettings(); }
+        else if (saveLocal()) setStatus(savedLabel()); else setStatus('Unable to save: this browser is blocking storage', true);
         renderAll();
         toast('Restored ' + plural(keys.length, 'day') + ' to ' + profile().label);
       }).catch(function () { toast('Unable to open this file. Choose a file whose name starts with training-logbook-backup'); });
@@ -1376,9 +1403,253 @@ th, td { border-bottom-color: var(--line); }
     });
   }
 
+  // ---------- private links ----------
+  // A link holds random secrets. Each is hashed with the code to give the real keys, so neither the link
+  // alone nor the code alone opens a logbook. Who may do what is decided by the database rules.
+  var FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyACIcpR7h23gO1GrQT_d5pp2Ky9zpL2710',
+    authDomain: 'tracking-my-weight.firebaseapp.com',
+    projectId: 'tracking-my-weight',
+    storageBucket: 'tracking-my-weight.firebasestorage.app',
+    messagingSenderId: '1098449986119',
+    appId: '1:1098449986119:web:a795700f8299a3a4fcc762'
+  };
+  var FIREBASE_URL = 'https://www.gstatic.com/firebasejs/10.14.1/';
+  var LINK_KEY = LOCAL_KEY + '-link';
+  var cloud = { me: null, books: null, stop: null, db: null, uid: null };
+  // Noey may open Noey's and Poom's logs; Poom opens Poom's. Both share one code, so this is set by who they pick.
+  function cloudBook(id) { return id === cloud.me || cloud.me === 'noey' ? cloud.books[id].r : null; }
+  function parseLink(text) {
+    var m = /k=([0-9a-f]{32,})/.exec(text);
+    return m ? { secret: m[1] } : null;
+  }
+  function findLink() {
+    var link = parseLink(location.hash), stored = null;
+    try { stored = localStorage.getItem(LINK_KEY); } catch (e) {}
+    if (link) { try { localStorage.setItem(LINK_KEY, location.hash); } catch (e) {} return link; }
+    return stored ? parseLink(stored) : null;
+  }
+  function sha(text) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    });
+  }
+  function loadScript(url) {
+    return new Promise(function (ok, fail) {
+      var el = document.createElement('script');
+      el.src = url; el.onload = ok; el.onerror = fail;
+      document.head.appendChild(el);
+    });
+  }
+  function loadFirebase() {
+    return loadScript(FIREBASE_URL + 'firebase-app-compat.js').then(function () {
+      return Promise.all([loadScript(FIREBASE_URL + 'firebase-auth-compat.js'), loadScript(FIREBASE_URL + 'firebase-firestore-compat.js')]);
+    });
+  }
+  function showLock(link) {
+    var root = $('lock'), msg, input, btn, tries = 0;
+    function fail(text) { msg.textContent = text; msg.className = 'err'; btn.disabled = false; input.value = ''; input.focus(); }
+    function submit(e) {
+      e.preventDefault();
+      var code = input.value.trim();
+      if (!code) return;
+      btn.disabled = true; msg.textContent = 'Opening…'; msg.className = '';
+      unlock(link, code).then(showPicker, function (err) {
+        if (err && err.code === 'permission-denied') {
+          tries++;
+          // Slow repeat guesses a little.
+          setTimeout(function () { fail('Wrong code. Try again'); }, Math.min(tries, 5) * 800);
+        } else fail('Unable to connect. Check your internet and try again');
+      });
+    }
+    root.textContent = '';
+    root.appendChild(h('form', { onsubmit: submit },
+      h('h2', null, 'Training Logbook'),
+      msg = h('p', null, 'Enter your code'),
+      input = h('input', { id: 'lock-code', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: '12', 'aria-label': 'Code' }),
+      btn = h('button', { type: 'submit' }, 'Open')));
+    root.hidden = false;
+    input.focus();
+  }
+  // Nothing is chosen in advance: each opening asks who is logging.
+  function showPicker() {
+    var root = $('lock');
+    function pick(id) {
+      cloud.me = id;
+      state.mode = 'cloud';
+      $('data-hint').textContent = 'Saved to your private logbook and shared across your devices. Back ups are optional.';
+      openBook(id);
+      root.hidden = true;
+    }
+    root.textContent = '';
+    root.appendChild(h('div', { class: 'pick' },
+      h('h2', null, 'Who is logging?'),
+      PROFILES.map(function (p) {
+        return h('button', { type: 'button', id: 'pick-' + p.id, class: p.id, onclick: function () { pick(p.id); } }, p.label);
+      })));
+  }
+  function unlock(link, code) {
+    var labels = ['noey:r', 'noey:w', 'poom:r', 'poom:w'];
+    return Promise.all(labels.map(function (x) { return sha(link.secret + ':' + code + ':' + x); })).then(function (hashed) {
+      return (window.firebase ? Promise.resolve() : loadFirebase()).then(function () {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(FIREBASE_CONFIG);
+          cloud.db = firebase.firestore();
+          cloud.db.enablePersistence({ synchronizeTabs: true }).catch(function () {});
+        }
+        return firebase.auth().signInAnonymously();
+      }).then(function (cred) {
+        cloud.uid = cred.user.uid;
+        cloud.books = { noey: { r: hashed[0], w: hashed[1] }, poom: { r: hashed[2], w: hashed[3] } };
+        return cloud.db.doc('books/' + cloud.books.noey.r).get().catch(function (e) {
+          if (e && e.code === 'unavailable') return null; // offline: open from what this device already has
+          throw e;
+        });
+      }).then(function () {
+        // Registers this device as allowed to write. The hash of this value is what the rules check.
+        var claims = ['noey', 'poom'].map(function (id) {
+          return cloud.db.doc('books/' + cloud.books[id].r + '/writers/' + cloud.uid).set({ proof: cloud.books[id].w });
+        });
+        return Promise.race([Promise.all(claims), new Promise(function (ok) { setTimeout(ok, 4000); })]);
+      });
+    });
+  }
+  function isViewOnly() { return state.mode === 'cloud' && state.profile !== cloud.me; }
+  function lockControls() {
+    if (!isViewOnly()) return;
+    ['log', 'plan'].forEach(function (id) {
+      Array.prototype.forEach.call($(id).querySelectorAll('input, button, select, textarea'), function (el) {
+        if (el.closest('.datenav')) return;
+        el.disabled = true;
+      });
+    });
+  }
+  new MutationObserver(lockControls).observe($('log'), { childList: true, subtree: true });
+  new MutationObserver(lockControls).observe($('plan'), { childList: true, subtree: true });
+  function openBook(id) {
+    if (cloud.stop) { cloud.stop(); cloud.stop = null; }
+    state.profile = id;
+    state.days = {}; state.customSplits = []; state.plans = []; state.exercise = null; editingPlan = null;
+    state.loaded = false; detailOpen = {};
+    col = cloud.db.collection('books/' + cloudBook(id) + '/items');
+    var viewOnly = isViewOnly(), note = $('viewnote');
+    document.documentElement.classList.toggle('view-only', viewOnly);
+    note.hidden = !(viewOnly || cloud.me === 'poom');
+    note.textContent = '';
+    if (viewOnly) note.appendChild(h('b', null, 'Viewing Poom · view only'));
+    else if (cloud.me === 'poom') note.textContent = 'Noey can also view your log';
+    renderWho();
+    setStatus('Opening your logbook…');
+    renderAll();
+    var waiting = setTimeout(function () { if (!state.loaded) setStatus('Unable to reach your logbook. Check your connection', true); }, 10000);
+    cloud.stop = col.onSnapshot({ includeMetadataChanges: true }, function (snap) {
+      var definitive = !snap.metadata.fromCache;
+      if (!definitive && snap.empty && !state.loaded) return;
+      clearTimeout(waiting);
+      var wasLoaded = state.loaded, changed = false, seen = {}, currentChanged = false;
+      snap.docs.forEach(function (doc) {
+        var body = doc.data();
+        if (doc.id === 'settings') {
+          var cs = Array.isArray(body.customSplits) ? body.customSplits.map(String) : [];
+          var ps = Array.isArray(body.plans) ? body.plans : [];
+          if (JSON.stringify(cs) !== JSON.stringify(state.customSplits) || JSON.stringify(ps) !== JSON.stringify(state.plans)) {
+            state.customSplits = cs; state.plans = ps; changed = true; currentChanged = true;
+          }
+          return;
+        }
+        if (doc.id.slice(0, 4) !== 'day-') return;
+        var k = doc.id.slice(4); seen[k] = 1;
+        if (dirty[k] || inflight[k]) return;
+        var next = normalize(body, k);
+        if (JSON.stringify(next) !== JSON.stringify(state.days[k])) {
+          state.days[k] = next; changed = true;
+          if (k === state.date) currentChanged = true;
+        }
+      });
+      Object.keys(state.days).forEach(function (k) {
+        if (!seen[k] && !dirty[k] && !inflight[k]) {
+          delete state.days[k]; changed = true;
+          if (k === state.date) currentChanged = true;
+        }
+      });
+      state.loaded = true;
+      if (!wasLoaded) {
+        if (!pendingWrites) setStatus(definitive ? savedLabel() : 'Offline. Showing what this device has');
+        renderAll();
+      } else if (changed) {
+        var a = document.activeElement;
+        if (currentChanged && !(a && $('log').contains(a) && a.tagName === 'INPUT')) renderLog();
+        if (currentChanged && !$('plan').hidden) renderPlan();
+        refreshReadViews();
+      }
+      if (definitive && !viewOnly) moveLocalData();
+    }, function (e) {
+      clearTimeout(waiting);
+      setStatus('Unable to load this logbook. Try reopening the link', true);
+    });
+  }
+  // Brings what this device logged before the link existed. Days already in the cloud win.
+  function moveLocalData() {
+    var flag = LOCAL_KEY + '-moved-' + cloud.me, saved = null;
+    try {
+      if (localStorage.getItem(flag)) return;
+      var p = PROFILES.filter(function (x) { return x.id === cloud.me; })[0];
+      saved = JSON.parse(localStorage.getItem(p.key) || 'null');
+    } catch (e) { return; }
+    var added = 0, settings = false;
+    if (saved) {
+      Object.keys(saved.days || {}).forEach(function (k) {
+        if (state.days[k] || !/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+        state.days[k] = normalize(saved.days[k] || {}, k);
+        dirty[k] = true; added++;
+      });
+      (Array.isArray(saved.plans) ? saved.plans : []).forEach(function (x) {
+        if (x && x.id && !state.plans.some(function (y) { return y.id === x.id; })) { state.plans.push(x); settings = true; }
+      });
+      (Array.isArray(saved.customSplits) ? saved.customSplits : []).forEach(function (x) {
+        if (state.customSplits.indexOf(String(x)) < 0) { state.customSplits.push(String(x)); settings = true; }
+      });
+    }
+    if (added) flushCloud();
+    if (settings) saveCloudSettings();
+    try { localStorage.setItem(flag, '1'); } catch (e) {}
+    if (added || settings) { renderAll(); toast('Moved ' + plural(added, 'day') + ' from this device to your logbook'); }
+  }
+  var pendingWrites = 0, slowTimer = null;
+  function cloudWrite(ref, body, done) {
+    pendingWrites++;
+    clearTimeout(slowTimer);
+    // Writes go to the device straight away and reach the cloud once online, so they aren't waited on one by one.
+    slowTimer = setTimeout(function () { if (pendingWrites) setStatus('Saved on this device. Syncing when online'); }, 4000);
+    (body ? ref.set(body) : ref.delete()).then(function () {
+      done(); pendingWrites--;
+      if (!pendingWrites && !Object.keys(dirty).length) { clearTimeout(slowTimer); setStatus(savedLabel()); }
+    }, function () {
+      done(); pendingWrites--;
+      clearTimeout(slowTimer);
+      setStatus('Not saved. Reopen your link and try again', true);
+    });
+  }
+  function flushCloud() {
+    if (!col || isViewOnly()) { dirty = {}; return; }
+    Object.keys(dirty).forEach(function (k) {
+      delete dirty[k];
+      inflight[k] = (inflight[k] || 0) + 1;
+      var body = state.days[k] ? JSON.parse(JSON.stringify(state.days[k])) : null;
+      cloudWrite(col.doc('day-' + k), body, function () { inflight[k]--; if (!inflight[k]) delete inflight[k]; });
+    });
+  }
+  function saveCloudSettings() {
+    if (!col || isViewOnly()) return;
+    setStatus('Saving…');
+    cloudWrite(col.doc('settings'), JSON.parse(JSON.stringify({ customSplits: state.customSplits, plans: state.plans })), function () {});
+  }
+
   state.date = todayKey();
   try { var rg = localStorage.getItem(LOCAL_KEY + '-range'); if (rg === '30' || rg === '90' || rg === 'all') state.range = rg; } catch (e) {}
   renderAll();
+  var privateLink = findLink();
+  if (privateLink) { setupBackup(); setupExport(null); showLock(privateLink); return; }
   if (!window.claude || !window.claude.use) { setupBackup(); setupExport(null); startLocal(); return; }
   window.claude.use('downloads').then(function (d) { if (d) setupExport(d); }, function () {});
   Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (r) {
