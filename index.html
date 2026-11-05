@@ -296,7 +296,7 @@ th, td { border-bottom-color: var(--line); }
   }
   function deficitFor(d, date) {
     var p = planFor(date);
-    return p && d.calIn != null ? p.tdee - d.calIn : null;
+    return p && d.calIn != null ? p.tdee + (d.calOut || 0) - d.calIn : null;
   }
   function profile() { return PROFILES.filter(function (p) { return p.id === state.profile; })[0] || PROFILES[0]; }
   function fileTag() { return state.mode === 'local' ? profile().id + '-' : ''; }
@@ -525,7 +525,7 @@ th, td { border-bottom-color: var(--line); }
     }
     root.appendChild(h('span', { id: 'plan-info' }, GOALS[p.goal] + ' · TDEE ' + n(p.tdee) + ' kcal' + (p.target != null ? ' · Target ' + n(p.target) + ' kcal' : '')));
     var diff = deficitFor(d, state.date);
-    root.appendChild(h('strong', { id: 'plan-deficit' }, diff == null ? 'Cal deficit —' : diff > 0 ? 'Cal deficit ' + n(diff) + ' kcal' : diff < 0 ? 'Cal surplus ' + n(-diff) + ' kcal' : 'Right at TDEE'));
+    root.appendChild(h('strong', { id: 'plan-deficit' }, diff == null ? 'Cal deficit —' : diff > 0 ? 'Cal deficit ' + n(diff) + ' kcal' : diff < 0 ? 'Cal surplus ' + n(-diff) + ' kcal' : 'No deficit or surplus'));
     if (p.target != null && d.calIn != null) {
       var left = p.target - d.calIn;
       root.appendChild(h('span', { id: 'plan-left' }, left > 0 ? n(left) + ' kcal left to target' : left < 0 ? n(-left) + ' kcal over target' : 'Right on target'));
@@ -1055,7 +1055,7 @@ th, td { border-bottom-color: var(--line); }
           cell(demo ? null : deficitFor(d, k)), cell(d.protein),
           cell(d.cardio), cell(d.weight));
       })))));
-    root.appendChild(h('p', { class: 'hint' }, demo ? 'These rows are examples' : 'Tap a date to edit that day. Deficit = TDEE − calories in; a minus means a surplus'));
+    root.appendChild(h('p', { class: 'hint' }, demo ? 'These rows are examples' : 'Tap a date to edit that day. Deficit = TDEE + calories out − calories in; a minus means a surplus'));
   }
 
   // ---------- TDEE plan ----------
@@ -1092,7 +1092,7 @@ th, td { border-bottom-color: var(--line); }
     }));
     root.appendChild(h('div', { class: 'sect' },
       h('h3', null, (edit ? 'Edit period' : 'Add a period') + ' for ' + profile().label),
-      h('p', { class: 'hint' }, 'Cal deficit = TDEE − calories in. It appears in the Log tab for every date in the period. Your calorie and cardio goals are tracked in the Goals tab.'),
+      h('p', { class: 'hint' }, 'Cal deficit = TDEE + calories out − calories in. It appears in the Log tab for every date in the period. Your calorie and cardio goals are tracked in the Goals tab.'),
       h('div', { class: 'planform' },
         box('plan-goal', 'Goal', goal),
         box('plan-tdee', 'TDEE (kcal per day)', numberInput('plan-tdee', edit ? edit.tdee : null, 'e.g. 2200')),
