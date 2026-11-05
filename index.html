@@ -961,8 +961,14 @@ th, td { border-bottom-color: var(--line); }
     } : null, 'No cardio in this period');
 
     // lift progress
+    var partOptions = ['all'].concat(Object.keys(EXERCISES));
+    function addPart(x) { x = PART_ALIASES[x] || x; if (partOptions.indexOf(x) < 0) partOptions.push(x); }
+    state.customSplits.forEach(addPart);
+    keys.forEach(function (k) { days[k].splits.forEach(addPart); });
+    if (partOptions.indexOf(state.part) < 0) { state.part = 'all'; state.exercise = null; }
     function inPart(name, d) {
       if (state.part === 'all') return true;
+      if (!EXERCISES[state.part]) return d.splits.some(function (x) { return x === state.part; });
       var known = Object.keys(EXERCISES).some(function (p) { return EXERCISES[p].some(function (x) { return sameName(x, name); }); });
       if (known) return EXERCISES[state.part].some(function (x) { return sameName(x, name); });
       return d.splits.some(function (x) { return (PART_ALIASES[x] || x) === state.part; });
@@ -973,6 +979,12 @@ th, td { border-bottom-color: var(--line); }
       if (nm && topSet(e) && inPart(nm, days[k])) { counts[id] = (counts[id] || 0) + 1; display[id] = nm; }
     }); });
     var ids = Object.keys(counts).sort(function (a, b2) { return counts[b2] - counts[a] || (a < b2 ? -1 : 1); });
+    (state.part === 'all' ? Object.keys(EXERCISES) : [state.part]).forEach(function (p) {
+      (EXERCISES[p] || []).forEach(function (nm) {
+        var id = nm.toLowerCase();
+        if (!display[id]) { display[id] = nm; ids.push(id); }
+      });
+    });
     if (ids.indexOf(state.exercise) < 0) state.exercise = ids[0] || null;
 
     // Every session of the chosen exercise, oldest first
@@ -1014,7 +1026,6 @@ th, td { border-bottom-color: var(--line); }
     }
     var latest = shown[shown.length - 1];
     var liftSum = latest ? h('div', { class: 'chart-sum' }, h('span', { class: 'hero' }, n(latest.top.kg) + ' kg'), changeText(latest) === 'First' ? null : changeText(latest) + ' from last ' + state.bucket) : null;
-    var partOptions = ['all'].concat(Object.keys(EXERCISES));
     var filters = h('div', { class: 'sect' },
       h('div', { class: 'selrow' },
         h('label', { for: 'part-select' }, 'Body part'),
@@ -1024,14 +1035,14 @@ th, td { border-bottom-color: var(--line); }
       ids.length ? h('div', { class: 'selrow' },
         h('label', { for: 'ex-select' }, 'Exercise'),
         h('select', { id: 'ex-select', class: 'txt', onchange: function (e) { state.exercise = e.target.value; renderCharts(); var el = $('ex-select'); if (el) el.focus(); } }, ids.map(function (id) {
-          var o = h('option', { value: id }, display[id] + ' (' + plural(counts[id], 'session') + ')'); if (id === state.exercise) o.selected = true; return o;
+          var o = h('option', { value: id }, counts[id] ? display[id] + ' (' + plural(counts[id], 'session') + ')' : display[id]); if (id === state.exercise) o.selected = true; return o;
         }))) : null,
       h('div', { class: 'seg', role: 'group', 'aria-label': 'Group by', style: 'align-self:flex-start' }, [['week', 'Week'], ['month', 'Month']].map(function (r) {
         return h('button', { type: 'button', 'aria-pressed': state.bucket === r[0] ? 'true' : 'false', onclick: function () { state.bucket = r[0]; renderCharts(); } }, r[1]);
       })));
     chart('Exercise progress', liftSum, filters, lift.length ? function (el) {
       drawPlot(el, Object.assign({ kind: 'line', zero: false, label: 'Top weight per ' + state.bucket + ' for ' + (display[state.exercise] || ''), series: [{ name: display[state.exercise], cls: 's1', pts: lift }] }, base));
-    } : null, ids.length ? 'No data for this exercise in this period. Try a wider range' : state.part === 'all' ? 'Log an exercise and weight, and your progress appears here' : 'No ' + state.part + ' exercises logged yet');
+    } : null, !ids.length ? 'No ' + state.part + ' exercises logged yet. Add one in the Log tab with weight and reps' : counts[state.exercise] ? 'No data for this exercise in this period. Try a wider range' : 'No weight logged for ' + display[state.exercise] + ' yet. Add weight and reps in the Log tab and your progress appears here');
     if (shown.length) {
       var perLabel = state.bucket === 'month' ? 'Month' : 'Week';
       root.appendChild(h('div', { class: 'sect' },
