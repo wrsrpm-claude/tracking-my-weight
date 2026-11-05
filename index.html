@@ -227,6 +227,10 @@ th, td { border-bottom-color: var(--line); }
 .viewnote b { color: var(--accent); }
 .view-only #backup-load { display: none; }
 .view-only #plan .planform, .view-only #plan .plan-actions { display: none; }
+.metric-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.metric-edit { font-size: 12px; min-height: 0; padding: 0; }
+.bigfield input[readonly] { caret-color: transparent; cursor: default; }
+.view-only .addrow, .view-only .metric-edit { display: none; }
 </style>
 
 <div class="lock" id="lock" hidden></div>
@@ -523,19 +527,30 @@ th, td { border-bottom-color: var(--line); }
   function field(key, label, unit, step, withAdd, addLabel) {
     var id = 'f-' + key, addId = 'add-' + key;
     function commit(v) { var d = ensureDay(); d[key] = v; touch(); updateNet(); }
-    function add() {
+    function setTotal(v) { commit(v); var el = $(id); if (el) el.value = v == null ? '' : v; }
+    function add(keepFocus) {
       var a = $(addId), x = num(a.value); if (x === null) return;
-      var v = Math.round(((day()[key] || 0) + x) * 10) / 10;
-      commit(v); $(id).value = v; a.value = ''; a.focus();
+      var before = day()[key], date = state.date;
+      var v = Math.round(((before || 0) + x) * 10) / 10;
+      setTotal(v); a.value = '';
+      if (keepFocus) a.focus();
+      toast('+' + n(x) + ' ' + unit + ' · total ' + n(v), function () { if (state.date === date) setTotal(before); });
+    }
+    function startEdit() {
+      var el = $(id);
+      el.removeAttribute('readonly');
+      el.focus(); el.select();
     }
     return h('div', { class: 'metric' },
-      h('label', { for: id }, label),
+      h('div', { class: 'metric-head' },
+        h('label', { for: id }, label),
+        withAdd && h('button', { type: 'button', class: 'linkbtn metric-edit', 'aria-label': 'Correct ' + label + ' total', onclick: startEdit }, 'Edit')),
       h('div', { class: 'bigfield' },
-        h('input', { id: id, type: 'number', inputmode: 'decimal', min: '0', step: step, placeholder: '0', value: day()[key] == null ? '' : day()[key], oninput: function (e) { commit(num(e.target.value)); } }),
+        h('input', { id: id, type: 'number', inputmode: 'decimal', min: '0', step: step, placeholder: '0', readonly: !!withAdd, value: day()[key] == null ? '' : day()[key], oninput: function (e) { commit(num(e.target.value)); }, onblur: withAdd ? function (e) { e.target.setAttribute('readonly', ''); } : null }),
         h('span', null, unit)),
       withAdd && h('div', { class: 'addrow' },
-        h('input', { id: addId, type: 'number', inputmode: 'decimal', min: '0', placeholder: addLabel, 'aria-label': addLabel + ' ' + label, onkeydown: function (e) { if (e.key === 'Enter') { e.preventDefault(); add(); } } }),
-        h('button', { type: 'button', onclick: add }, 'Add')));
+        h('input', { id: addId, type: 'number', inputmode: 'decimal', min: '0', placeholder: addLabel, 'aria-label': addLabel + ' ' + label, onkeydown: function (e) { if (e.key === 'Enter') { e.preventDefault(); add(true); } }, onblur: function () { add(false); } }),
+        h('button', { type: 'button', onclick: function () { add(true); } }, 'Add')));
   }
   function updatePlanLine() {
     var root = $('plan-line'); if (!root) return;
