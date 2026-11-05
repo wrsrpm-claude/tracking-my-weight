@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500..700&family=Figtree:wght@400..600&display=swap">
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500..700&family=Figtree:wght@400..600&display=swap">
 <style>
 /* Layout: one screen at a time from a bottom tab bar, bright and light. The whole page takes the colour of whoever is logging: pink for Noey, blue for Poom. */
 :root {
@@ -227,6 +227,8 @@ th, td { border-bottom-color: var(--line); }
 .viewnote b { color: var(--accent); }
 .view-only #backup-load { display: none; }
 .view-only #plan .planform, .view-only #plan .plan-actions { display: none; }
+html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button:active:not(:disabled) { opacity: .55; }
 .metric-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
 .metric-edit { font-size: 12px; min-height: 0; padding: 0; }
 .bigfield input[readonly] { caret-color: transparent; cursor: default; }
@@ -1240,12 +1242,16 @@ th, td { border-bottom-color: var(--line); }
       var b = $('nav-' + x);
       if (x === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    if (v === 'charts') renderCharts();
-    if (v === 'history') renderHistory();
-    if (v === 'plan') renderPlan();
-    if (v === 'goals') renderGoals();
+    var token = ++viewToken;
+    setTimeout(function () {
+      if (token !== viewToken) return;
+      if (v === 'charts') renderCharts();
+      if (v === 'history') renderHistory();
+      if (v === 'plan') renderPlan();
+      if (v === 'goals') renderGoals();
+    }, 20);
   }
-  var viewTimer = null;
+  var viewTimer = null, viewToken = 0;
   function refreshReadViews() {
     clearTimeout(viewTimer);
     viewTimer = setTimeout(function () {
@@ -1467,20 +1473,36 @@ th, td { border-bottom-color: var(--line); }
       document.head.appendChild(el);
     });
   }
+  var firebaseLoading = null;
   function loadFirebase() {
-    return loadScript(FIREBASE_URL + 'firebase-app-compat.js').then(function () {
+    if (!firebaseLoading) firebaseLoading = loadScript(FIREBASE_URL + 'firebase-app-compat.js').then(function () {
       return Promise.all([loadScript(FIREBASE_URL + 'firebase-auth-compat.js'), loadScript(FIREBASE_URL + 'firebase-firestore-compat.js')]);
     });
+    return firebaseLoading;
+  }
+  var UNLOCK_KEY = LOCAL_KEY + '-unlocked';
+  function savedBooks(link) {
+    try {
+      var saved = JSON.parse(localStorage.getItem(UNLOCK_KEY) || 'null');
+      return saved && saved.secret === link.secret && saved.books && saved.books.noey && saved.books.poom ? saved.books : null;
+    } catch (e) { return null; }
   }
   function showLock(link) {
-    var root = $('lock'), msg, input, btn, tries = 0;
+    var root = $('lock'), msg, input, btn, tries = 0, saved = savedBooks(link);
+    function remember() {
+      try { localStorage.setItem(UNLOCK_KEY, JSON.stringify({ secret: link.secret, books: cloud.books, uid: cloud.uid })); } catch (e) {}
+    }
+    loadFirebase().catch(function () { firebaseLoading = null; });
     function fail(text) { msg.textContent = text; msg.className = 'err'; btn.disabled = false; input.value = ''; input.focus(); }
     function submit(e) {
       e.preventDefault();
       var code = input.value.trim();
       if (!code) return;
       btn.disabled = true; msg.textContent = 'Opening…'; msg.className = '';
-      unlock(link, code).then(showPicker, function (err) {
+      unlock(link, code).then(function () {
+        remember();
+        showPicker();
+      }, function (err) {
         if (err && err.code === 'permission-denied') {
           tries++;
           // Slow repeat guesses a little.
@@ -1488,14 +1510,27 @@ th, td { border-bottom-color: var(--line); }
         } else fail('Unable to connect. Check your internet and try again');
       });
     }
-    root.textContent = '';
-    root.appendChild(h('form', { onsubmit: submit },
-      h('h2', null, 'Training Logbook'),
-      msg = h('p', null, 'Enter your code'),
-      input = h('input', { id: 'lock-code', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: '12', 'aria-label': 'Code' }),
-      btn = h('button', { type: 'submit' }, 'Open')));
+    function askCode(note) {
+      root.textContent = '';
+      root.appendChild(h('form', { onsubmit: submit },
+        h('h2', null, 'Training Logbook'),
+        msg = h('p', note ? { class: 'err' } : null, note || 'Enter your code'),
+        input = h('input', { id: 'lock-code', type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: '12', 'aria-label': 'Code' }),
+        btn = h('button', { type: 'submit' }, 'Open')));
+      root.hidden = false;
+      input.focus();
+    }
+    if (!saved) { askCode(); return; }
+    cloud.ready = unlock(link, null, saved).then(remember);
+    cloud.ready.catch(function (err) {
+      cloud.ready = null;
+      if (err && err.code === 'permission-denied') {
+        try { localStorage.removeItem(UNLOCK_KEY); } catch (e) {}
+        askCode();
+      } else askCode('Unable to connect. Check your internet and try again');
+    });
     root.hidden = false;
-    input.focus();
+    showPicker();
   }
   // Nothing is chosen in advance: each opening asks who is logging.
   function showPicker() {
@@ -1504,8 +1539,9 @@ th, td { border-bottom-color: var(--line); }
       cloud.me = id;
       state.mode = 'cloud';
       $('data-hint').textContent = 'Saved to your private logbook and shared across your devices. Back ups are optional.';
-      openBook(id);
+      document.documentElement.setAttribute('data-person', id);
       root.hidden = true;
+      (cloud.ready || Promise.resolve()).then(function () { openBook(id); }, function () {});
     }
     root.textContent = '';
     root.appendChild(h('div', { class: 'pick' },
@@ -1514,24 +1550,31 @@ th, td { border-bottom-color: var(--line); }
         return h('button', { type: 'button', id: 'pick-' + p.id, class: p.id, onclick: function () { pick(p.id); } }, p.label);
       })));
   }
-  function unlock(link, code) {
+  function unlock(link, code, known) {
     var labels = ['noey:r', 'noey:w', 'poom:r', 'poom:w'];
-    return Promise.all(labels.map(function (x) { return sha(link.secret + ':' + code + ':' + x); })).then(function (hashed) {
-      return (window.firebase ? Promise.resolve() : loadFirebase()).then(function () {
+    var derived = known ? Promise.resolve(known) : Promise.all(labels.map(function (x) { return sha(link.secret + ':' + code + ':' + x); })).then(function (hashed) {
+      return { noey: { r: hashed[0], w: hashed[1] }, poom: { r: hashed[2], w: hashed[3] } };
+    });
+    return derived.then(function (books) {
+      return loadFirebase().then(function () {
         if (!firebase.apps.length) {
           firebase.initializeApp(FIREBASE_CONFIG);
           cloud.db = firebase.firestore();
-          cloud.db.enablePersistence({ synchronizeTabs: true }).catch(function () {});
+          cloud.db.enablePersistence().catch(function () {});
         }
         return firebase.auth().signInAnonymously();
       }).then(function (cred) {
         cloud.uid = cred.user.uid;
-        cloud.books = { noey: { r: hashed[0], w: hashed[1] }, poom: { r: hashed[2], w: hashed[3] } };
+        cloud.books = books;
+        if (known) return null;
         return cloud.db.doc('books/' + cloud.books.noey.r).get().catch(function (e) {
           if (e && e.code === 'unavailable') return null; // offline: open from what this device already has
           throw e;
         });
       }).then(function () {
+        var stored = null;
+        try { stored = JSON.parse(localStorage.getItem(UNLOCK_KEY) || 'null'); } catch (e) {}
+        if (known && stored && stored.uid === cloud.uid) return null; // already registered
         // Registers this device as allowed to write. The hash of this value is what the rules check.
         var claims = ['noey', 'poom'].map(function (id) {
           return cloud.db.doc('books/' + cloud.books[id].r + '/writers/' + cloud.uid).set({ proof: cloud.books[id].w });
@@ -1572,6 +1615,10 @@ th, td { border-bottom-color: var(--line); }
       var definitive = !snap.metadata.fromCache;
       if (!definitive && snap.empty && !state.loaded) return;
       clearTimeout(waiting);
+      if (state.loaded && !snap.docChanges().length) {
+        if (definitive && !viewOnly) moveLocalData();
+        return;
+      }
       var wasLoaded = state.loaded, changed = false, seen = {}, currentChanged = false;
       snap.docs.forEach(function (doc) {
         var body = doc.data();
@@ -1611,6 +1658,7 @@ th, td { border-bottom-color: var(--line); }
       if (definitive && !viewOnly) moveLocalData();
     }, function (e) {
       clearTimeout(waiting);
+      if (e && e.code === 'permission-denied') { try { localStorage.removeItem(UNLOCK_KEY); } catch (x) {} }
       setStatus('Unable to load this logbook. Try reopening the link', true);
     });
   }
