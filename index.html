@@ -36,7 +36,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .backup { display: flex; gap: 6px; }
 .backup .btn, .btn.small { min-height: 30px; padding: 3px 10px; font-size: 13px; }
 #export-xlsx { margin-left: auto; }
-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px), calc((100% - 728px) / 2)); padding-right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 728px) / 2)); }
+nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px), calc((100% - 728px) / 2)); padding-right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 728px) / 2)); }
 nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 53px; background: none; border: 0; border-radius: 10px; padding: 5px 4px; color: var(--muted); font-size: 12px; font-weight: 500; }
 nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav button:hover { color: var(--ink); }
@@ -142,6 +142,11 @@ nav button[aria-current=page] { background: var(--tint); color: var(--ink); font
 .tip div:first-child { font-weight: 600; }
 .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; outline: 1px solid var(--bg); }
 .empty { padding: 28px 12px; text-align: center; color: var(--muted); font-size: 14px; border: 1px dashed var(--axis); border-radius: 6px; }
+.planform { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.planform div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.planform label { font-size: 13px; color: var(--muted); }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.plan-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; }
 .selrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .selrow label { font-size: 13px; color: var(--muted); }
 .selrow select { flex: 0 1 260px; min-width: 0; }
@@ -175,12 +180,14 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     <section class="pane" id="log" aria-label="Daily log"></section>
     <section class="pane" id="charts" aria-label="Charts" hidden></section>
     <section class="pane" id="history" aria-label="History" hidden></section>
+    <section class="pane" id="plan" aria-label="TDEE plan" hidden></section>
   </div>
 </div>
 <nav aria-label="Main">
   <button type="button" id="nav-log" data-view="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>Log</button>
   <button type="button" id="nav-charts" data-view="charts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8 15l4-5 3 3 5-7"/></svg>Charts</button>
   <button type="button" id="nav-history" data-view="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>History</button>
+  <button type="button" id="nav-plan" data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8"/></svg>Plan</button>
 </nav>
 <div id="toast-root"></div>
 
@@ -219,15 +226,28 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   ];
   var PROFILE_KEY = LOCAL_KEY + '-profile';
   state.profile = PROFILES[0].id;
+  state.plans = [];
+  var GOALS = { cut: 'Cut', bulk: 'Bulk', maintain: 'Maintain' };
+  var editingPlan = null;
+  // When periods overlap, the one that started most recently applies.
+  function planFor(date) {
+    return state.plans.filter(function (p) { return p.start <= date && (!p.end || date <= p.end); })
+      .sort(function (a, b) { return a.start < b.start ? 1 : -1; })[0] || null;
+  }
+  function deficitFor(d, date) {
+    var p = planFor(date);
+    return p && d.calIn != null ? p.tdee - d.calIn : null;
+  }
   function profile() { return PROFILES.filter(function (p) { return p.id === state.profile; })[0] || PROFILES[0]; }
   function fileTag() { return state.mode === 'local' ? profile().id + '-' : ''; }
   function loadProfile() {
-    state.days = {}; state.customSplits = []; state.exercise = null;
+    state.days = {}; state.customSplits = []; state.plans = []; state.exercise = null; editingPlan = null;
     try {
       var saved = JSON.parse(localStorage.getItem(profile().key) || 'null');
       if (saved) {
         Object.keys(saved.days || {}).forEach(function (k) { state.days[k] = normalize(saved.days[k], k); });
         state.customSplits = saved.customSplits || [];
+        state.plans = Array.isArray(saved.plans) ? saved.plans : [];
       }
     } catch (e) {}
   }
@@ -288,12 +308,12 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   function $(id) { return document.getElementById(id); }
 
   // ---------- data ----------
-  function blank(date) { return { date: date, calIn: null, calOut: null, cardio: null, weight: null, splits: [], exercises: [] }; }
+  function blank(date) { return { date: date, calIn: null, calOut: null, protein: null, cardio: null, weight: null, splits: [], exercises: [] }; }
   function day() { return state.days[state.date] || blank(state.date); }
-  function isEmpty(d) { return d.calIn == null && d.calOut == null && d.cardio == null && d.weight == null && !d.splits.length && !d.exercises.length; }
+  function isEmpty(d) { return d.calIn == null && d.calOut == null && d.protein == null && d.cardio == null && d.weight == null && !d.splits.length && !d.exercises.length; }
   function normalize(raw, date) {
     var d = blank(date);
-    ['calIn', 'calOut', 'cardio', 'weight'].forEach(function (k) { d[k] = typeof raw[k] === 'number' ? raw[k] : null; });
+    ['calIn', 'calOut', 'protein', 'cardio', 'weight'].forEach(function (k) { d[k] = typeof raw[k] === 'number' ? raw[k] : null; });
     d.splits = Array.isArray(raw.splits) ? raw.splits.map(String) : [];
     d.exercises = Array.isArray(raw.exercises) ? raw.exercises.map(function (e) {
       return { name: String(e.name || ''), sets: Array.isArray(e.sets) ? e.sets.map(function (s) { return { kg: typeof s.kg === 'number' ? s.kg : null, reps: typeof s.reps === 'number' ? s.reps : null }; }) : [] };
@@ -364,7 +384,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   function setStatus(text, err) { var s = $('status'); s.textContent = text; s.className = 'status' + (err ? ' err' : ''); }
   function savedLabel() { return state.mode === 'local' ? 'Saved for ' + profile().label + ' in this browser only' : 'Saved'; }
   function saveLocal() {
-    try { localStorage.setItem(profile().key, JSON.stringify({ days: state.days, customSplits: state.customSplits })); return true; }
+    try { localStorage.setItem(profile().key, JSON.stringify({ days: state.days, customSplits: state.customSplits, plans: state.plans })); return true; }
     catch (e) { return false; }
   }
   function touch() {
@@ -431,7 +451,25 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
         h('input', { id: addId, type: 'number', inputmode: 'decimal', min: '0', placeholder: addLabel, 'aria-label': addLabel + ' ' + label, onkeydown: function (e) { if (e.key === 'Enter') { e.preventDefault(); add(); } } }),
         h('button', { type: 'button', onclick: add }, 'Add')));
   }
+  function updatePlanLine() {
+    var root = $('plan-line'); if (!root) return;
+    root.textContent = '';
+    var d = day(), p = planFor(state.date);
+    if (!p) {
+      root.appendChild(h('span', null, 'No TDEE set for this date'));
+      root.appendChild(h('button', { type: 'button', class: 'linkbtn', onclick: function () { setView('plan'); } }, 'Set TDEE'));
+      return;
+    }
+    root.appendChild(h('span', { id: 'plan-info' }, GOALS[p.goal] + ' · TDEE ' + n(p.tdee) + ' kcal' + (p.target != null ? ' · Target ' + n(p.target) + ' kcal' : '')));
+    var diff = deficitFor(d, state.date);
+    root.appendChild(h('strong', { id: 'plan-deficit' }, diff == null ? 'Cal deficit —' : diff > 0 ? 'Cal deficit ' + n(diff) + ' kcal' : diff < 0 ? 'Cal surplus ' + n(-diff) + ' kcal' : 'Right at TDEE'));
+    if (p.target != null && d.calIn != null) {
+      var left = p.target - d.calIn;
+      root.appendChild(h('span', { id: 'plan-left' }, left > 0 ? n(left) + ' kcal left to target' : left < 0 ? n(-left) + ' kcal over target' : 'Right on target'));
+    }
+  }
   function updateNet() {
+    updatePlanLine();
     var el = $('net-v'); if (!el) return;
     var d = day();
     if (d.calIn == null || d.calOut == null) { el.textContent = '—'; $('net-l').textContent = 'Enter calories in and out to see the balance'; return; }
@@ -460,9 +498,11 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       h('div', { class: 'metrics' },
         field('calIn', 'Calories in', 'kcal', '1', true, '+ this meal'),
         field('calOut', 'Calories out', 'kcal', '1', true, '+ burned'),
+        field('protein', 'Protein', 'g', '1', true, '+ this meal'),
         field('cardio', 'Cardio', 'min', '1', true, '+ session'),
         field('weight', 'Body weight', 'kg', '0.1', false)),
-      h('div', { class: 'net' }, h('span', { id: 'net-l' }), h('strong', { id: 'net-v' }))));
+      h('div', { class: 'net' }, h('span', { id: 'net-l' }), h('strong', { id: 'net-v' })),
+      h('div', { class: 'net', id: 'plan-line' })));
     updateNet();
     root.appendChild(renderWorkout());
     root.appendChild(h('datalist', { id: 'ex-names' }, exerciseNames().map(function (x) { return h('option', { value: x }); })));
@@ -814,6 +854,14 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       drawPlot(el, Object.assign({ kind: 'line', zero: true, label: 'Calories in and out chart', series: [{ name: 'In', cls: 's1', pts: ci }, { name: 'Out', cls: 's2', pts: co }] }, base));
     } : null, 'No calories in this period');
 
+    // protein
+    var pr = pts('protein').filter(function (p) { return p.y > 0; });
+    pr.forEach(function (p) { p.tip = n(p.y) + ' g'; });
+    var prSum = pr.length ? h('div', { class: 'chart-sum' }, 'Daily average ' + n(Math.round(avg(pr))) + ' g · ' + plural(pr.length, 'day')) : null;
+    chart('Protein (grams)', prSum, null, pr.length ? function (el) {
+      drawPlot(el, Object.assign({ kind: 'bar', zero: true, height: 150, label: 'Protein grams chart', series: [{ name: 'Protein', cls: 's1', pts: pr }] }, base));
+    } : null, 'No protein in this period');
+
     // cardio
     var ca = pts('cardio').filter(function (p) { return p.y > 0; });
     ca.forEach(function (p) { p.tip = n(p.y) + ' min'; });
@@ -857,7 +905,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     if (!keys.length) { root.appendChild(h('div', { class: 'empty' }, 'No history yet')); return; }
     function cell(v) { return h('td', null, v == null ? '–' : n(v)); }
     root.appendChild(h('div', { class: 'tablewrap' }, h('table', null,
-      h('thead', null, h('tr', null, ['Date', 'Workout', 'In', 'Out', 'Net', 'Cardio', 'Body weight'].map(function (t, i) { return h('th', { scope: 'col', class: i === 1 ? 'l' : null }, t); }))),
+      h('thead', null, h('tr', null, ['Date', 'Workout', 'In', 'Out', 'Net', 'Deficit', 'Protein', 'Cardio', 'Body weight'].map(function (t, i) { return h('th', { scope: 'col', class: i === 1 ? 'l' : null }, t); }))),
       h('tbody', null, keys.map(function (k) {
         var d = days[k], label = fmtRow.format(keyToDate(k));
         var vol = d.exercises.reduce(function (a, e) { return a + volume(e); }, 0), logged = d.exercises.filter(hasValues).length;
@@ -867,9 +915,76 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
           h('td', { class: 'l' }, work || '–'),
           cell(d.calIn), cell(d.calOut),
           cell(d.calIn != null && d.calOut != null ? d.calIn - d.calOut : null),
+          cell(demo ? null : deficitFor(d, k)), cell(d.protein),
           cell(d.cardio), cell(d.weight));
       })))));
-    root.appendChild(h('p', { class: 'hint' }, demo ? 'These rows are examples' : 'Tap a date to edit that day'));
+    root.appendChild(h('p', { class: 'hint' }, demo ? 'These rows are examples' : 'Tap a date to edit that day. Deficit = TDEE − calories in; a minus means a surplus'));
+  }
+
+  // ---------- TDEE plan ----------
+  function planDates(p) {
+    return fmtRow.format(keyToDate(p.start)) + ' to ' + (p.end ? fmtRow.format(keyToDate(p.end)) : 'no end date');
+  }
+  function savePlans() {
+    if (saveLocal()) setStatus(savedLabel()); else setStatus('Unable to save: this browser is blocking storage', true);
+    renderPlan();
+    renderLog();
+  }
+  function renderPlan() {
+    var root = $('plan'); root.textContent = '';
+    if (!state.loaded) return;
+    var edit = editingPlan ? state.plans.filter(function (p) { return p.id === editingPlan; })[0] : null;
+    function box(id, label, input) { return h('div', null, h('label', { for: id }, label), input); }
+    function numberInput(id, value, placeholder) { return h('input', { id: id, class: 'txt', type: 'number', inputmode: 'numeric', min: '0', step: '1', placeholder: placeholder, value: value == null ? '' : value }); }
+    function submit() {
+      var tdee = num($('plan-tdee').value), start = $('plan-start').value, end = $('plan-end').value || null;
+      if (!tdee) { toast('Enter your TDEE in kcal'); $('plan-tdee').focus(); return; }
+      if (!start) { toast('Choose a start date'); return; }
+      if (end && end < start) { toast('The end date must be after the start date'); return; }
+      var data = { goal: $('plan-goal').value, tdee: tdee, target: num($('plan-target').value), start: start, end: end };
+      if (edit) Object.keys(data).forEach(function (k) { edit[k] = data[k]; });
+      else { data.id = 'p' + Date.now(); state.plans.push(data); }
+      editingPlan = null;
+      savePlans();
+      toast('Plan saved for ' + profile().label);
+    }
+    var goal = h('select', { id: 'plan-goal', class: 'txt' }, Object.keys(GOALS).map(function (k) {
+      var o = h('option', { value: k }, GOALS[k]);
+      if ((edit ? edit.goal : 'cut') === k) o.selected = true;
+      return o;
+    }));
+    root.appendChild(h('div', { class: 'sect' },
+      h('h3', null, (edit ? 'Edit period' : 'Add a period') + ' for ' + profile().label),
+      h('p', { class: 'hint' }, 'Cal deficit = TDEE − calories in. It appears in the Log tab for every date in the period.'),
+      h('div', { class: 'planform' },
+        box('plan-goal', 'Goal', goal),
+        box('plan-tdee', 'TDEE (kcal per day)', numberInput('plan-tdee', edit ? edit.tdee : null, 'e.g. 2200')),
+        box('plan-target', 'Calorie target (optional)', numberInput('plan-target', edit ? edit.target : null, 'e.g. 1800')),
+        h('div'),
+        box('plan-start', 'Start date', h('input', { id: 'plan-start', class: 'txt', type: 'date', value: edit ? edit.start : todayKey() })),
+        box('plan-end', 'End date (optional)', h('input', { id: 'plan-end', class: 'txt', type: 'date', value: edit && edit.end ? edit.end : '' }))),
+      h('div', { class: 'plan-actions' },
+        h('button', { type: 'button', class: 'btn primary', id: 'plan-save', onclick: submit }, edit ? 'Save changes' : 'Save period'),
+        edit && h('button', { type: 'button', class: 'btn', onclick: function () { editingPlan = null; renderPlan(); } }, 'Cancel'))));
+    var current = planFor(todayKey());
+    var list = state.plans.slice().sort(function (a, b) { return a.start < b.start ? 1 : -1; });
+    root.appendChild(h('div', { class: 'sect' },
+      h('h3', null, 'Periods'),
+      !list.length && h('div', { class: 'empty' }, 'No periods yet. Add one above and your cal deficit appears in the Log tab'),
+      list.map(function (p) {
+        return h('div', { class: 'ex' },
+          h('div', { class: 'plan-title' }, GOALS[p.goal] + ' · TDEE ' + n(p.tdee) + ' kcal', p === current && h('span', { class: 'pr' }, 'Now')),
+          h('div', { class: 'ex-sum' }, planDates(p) + (p.target != null ? ' · Target ' + n(p.target) + ' kcal' : '')),
+          h('div', { class: 'plan-actions' },
+            h('button', { type: 'button', class: 'btn', onclick: function () { editingPlan = p.id; renderPlan(); window.scrollTo(0, 0); } }, 'Edit'),
+            h('button', { type: 'button', class: 'btn', onclick: function () {
+              var at = state.plans.indexOf(p);
+              state.plans.splice(at, 1);
+              if (editingPlan === p.id) editingPlan = null;
+              savePlans();
+              toast('Deleted ' + GOALS[p.goal] + ' period', function () { state.plans.splice(at, 0, p); savePlans(); });
+            } }, 'Delete')));
+      })));
   }
 
   // ---------- views ----------
@@ -879,12 +994,14 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     $('log').hidden = v !== 'log';
     $('charts').hidden = v !== 'charts';
     $('history').hidden = v !== 'history';
-    ['log', 'charts', 'history'].forEach(function (x) {
+    $('plan').hidden = v !== 'plan';
+    ['log', 'charts', 'history', 'plan'].forEach(function (x) {
       var b = $('nav-' + x);
       if (x === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     if (v === 'charts') renderCharts();
     if (v === 'history') renderHistory();
+    if (v === 'plan') renderPlan();
   }
   var viewTimer = null;
   function refreshReadViews() {
@@ -919,12 +1036,13 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   }
   function workbookBytes(XLSX) {
     var keys = Object.keys(state.days).sort();
-    var daily = [['Date', 'Workout', 'Calories in (kcal)', 'Calories out (kcal)', 'Net (kcal)', 'Cardio (min)', 'Body weight (kg)', 'Exercises', 'Volume (kg)']];
+    var daily = [['Date', 'Workout', 'Calories in (kcal)', 'Calories out (kcal)', 'Net (kcal)', 'Goal', 'TDEE (kcal)', 'Cal deficit (kcal)', 'Protein (g)', 'Cardio (min)', 'Body weight (kg)', 'Exercises', 'Volume (kg)']];
     var sets = [['Date', 'Workout', 'Exercise', 'Set', 'Weight (kg)', 'Reps', 'Volume (kg)']];
     keys.forEach(function (k) {
       var d = state.days[k], workout = d.splits.join(' + ');
       var vol = d.exercises.reduce(function (a, e) { return a + volume(e); }, 0);
-      daily.push([k, workout, d.calIn, d.calOut, d.calIn != null && d.calOut != null ? d.calIn - d.calOut : null, d.cardio, d.weight, d.exercises.filter(hasValues).length || null, vol || null]);
+      var plan = planFor(k);
+      daily.push([k, workout, d.calIn, d.calOut, d.calIn != null && d.calOut != null ? d.calIn - d.calOut : null, plan ? GOALS[plan.goal] : null, plan ? plan.tdee : null, deficitFor(d, k), d.protein, d.cardio, d.weight, d.exercises.filter(hasValues).length || null, vol || null]);
       d.exercises.forEach(function (e) {
         e.sets.forEach(function (s, i) {
           if (s.kg == null && s.reps == null) return;
@@ -934,7 +1052,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     });
     var wb = XLSX.utils.book_new();
     var wsDaily = XLSX.utils.aoa_to_sheet(daily), wsSets = XLSX.utils.aoa_to_sheet(sets);
-    wsDaily['!cols'] = [12, 22, 16, 17, 10, 12, 16, 10, 11].map(function (w) { return { wch: w }; });
+    wsDaily['!cols'] = [12, 22, 16, 17, 10, 10, 11, 16, 11, 12, 16, 10, 11].map(function (w) { return { wch: w }; });
     wsSets['!cols'] = [12, 22, 26, 6, 11, 7, 11].map(function (w) { return { wch: w }; });
     XLSX.utils.book_append_sheet(wb, wsDaily, 'Daily log');
     XLSX.utils.book_append_sheet(wb, wsSets, 'Lifting sets');
@@ -972,7 +1090,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     $('backup').hidden = false;
     $('backup-save').addEventListener('click', function () {
       flushNow();
-      var body = JSON.stringify({ app: 'somjod', version: 1, profile: state.profile, exportedAt: new Date().toISOString(), days: state.days, customSplits: state.customSplits }, null, 1);
+      var body = JSON.stringify({ app: 'somjod', version: 1, profile: state.profile, exportedAt: new Date().toISOString(), days: state.days, customSplits: state.customSplits, plans: state.plans }, null, 1);
       var url = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
       var a = h('a', { href: url, download: 'training-logbook-backup-' + fileTag() + todayKey() + '.json' });
       document.body.appendChild(a); a.click(); a.remove();
@@ -994,6 +1112,9 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
         var clash = keys.filter(function (k) { return state.days[k]; }).length;
         if (clash && !window.confirm('This file overlaps with ' + plural(clash, 'day') + ' already saved here. Restoring replaces them with the versions in the file. Continue?')) return;
         keys.forEach(function (k) { state.days[k] = normalize(data.days[k] || {}, k); });
+        (Array.isArray(data.plans) ? data.plans : []).forEach(function (p) {
+          if (p && p.id && !state.plans.some(function (x) { return x.id === p.id; })) state.plans.push(p);
+        });
         (Array.isArray(data.customSplits) ? data.customSplits : []).forEach(function (s) {
           s = String(s); if (state.customSplits.indexOf(s) < 0) state.customSplits.push(s);
         });
