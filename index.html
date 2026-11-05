@@ -36,7 +36,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .backup { display: flex; gap: 6px; }
 .backup .btn, .btn.small { min-height: 30px; padding: 3px 10px; font-size: 13px; }
 #export-xlsx { margin-left: auto; }
-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px), calc((100% - 728px) / 2)); padding-right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 728px) / 2)); }
+nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; background: var(--bg); border-top: 1px solid var(--line); padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px), calc((100% - 728px) / 2)); padding-right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 728px) / 2)); }
 nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 53px; background: none; border: 0; border-radius: 10px; padding: 5px 4px; color: var(--muted); font-size: 12px; font-weight: 500; }
 nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav button:hover { color: var(--ink); }
@@ -147,6 +147,28 @@ nav button[aria-current=page] { background: var(--tint); color: var(--ink); font
 .planform label { font-size: 13px; color: var(--muted); }
 .plan-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .plan-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; }
+.up { font-weight: 700; color: var(--accent); }
+.subhead { margin: 8px 0 0; font: 600 14px/1.3 var(--display); }
+.climb { display: flex; flex-direction: column; gap: 8px; }
+.climb svg { display: block; width: 100%; max-width: 520px; height: auto; margin: 0 auto; }
+.climb .mt { fill: var(--tint); stroke: var(--axis); stroke-width: 1.5; stroke-linejoin: round; }
+.climb .snow { fill: var(--bg); stroke: var(--axis); stroke-width: 1.5; stroke-linejoin: round; }
+.climb .trail { fill: none; stroke: var(--axis); stroke-width: 2; stroke-dasharray: 3 5; stroke-linecap: round; }
+.climb .done { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.climb .st { fill: var(--bg); stroke: var(--axis); stroke-width: 1.5; }
+.climb .st.on { fill: var(--accent); stroke: var(--accent); }
+.climb text { font: 600 10px var(--body); fill: var(--muted); }
+.climb text.on { fill: var(--on-accent); }
+.climb .me { fill: var(--ink); stroke: var(--bg); stroke-width: 3; }
+.climb .flag { fill: var(--accent); }
+.climb .pole { stroke: var(--ink); stroke-width: 2; }
+.climb-big { font: 700 24px/1.2 var(--display); }
+.badges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.badge { display: flex; flex-direction: column; gap: 4px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 10px; color: var(--muted); font-size: 13px; }
+.badge b { font: 600 14px/1.3 var(--display); }
+.badge.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.meter { height: 6px; border-radius: 3px; background: var(--tint); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); }
 .selrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .selrow label { font-size: 13px; color: var(--muted); }
 .selrow select { flex: 0 1 260px; min-width: 0; }
@@ -181,6 +203,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     <section class="pane" id="charts" aria-label="Charts" hidden></section>
     <section class="pane" id="history" aria-label="History" hidden></section>
     <section class="pane" id="plan" aria-label="TDEE plan" hidden></section>
+    <section class="pane" id="goals" aria-label="Goals" hidden></section>
   </div>
 </div>
 <nav aria-label="Main">
@@ -188,6 +211,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   <button type="button" id="nav-charts" data-view="charts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8 15l4-5 3 3 5-7"/></svg>Charts</button>
   <button type="button" id="nav-history" data-view="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>History</button>
   <button type="button" id="nav-plan" data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8"/></svg>Plan</button>
+  <button type="button" id="nav-goals" data-view="goals"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 20 10 7l3.5 6 2-3 6 10z"/><path d="M8 10.5l2 1.5 2-1.5"/></svg>Goals</button>
 </nav>
 <div id="toast-root"></div>
 
@@ -227,6 +251,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   var PROFILE_KEY = LOCAL_KEY + '-profile';
   state.profile = PROFILES[0].id;
   state.plans = [];
+  state.part = 'all'; state.bucket = 'week';
   var GOALS = { cut: 'Cut', bulk: 'Bulk', maintain: 'Maintain' };
   var editingPlan = null;
   // When periods overlap, the one that started most recently applies.
@@ -279,6 +304,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   var fmtLong = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   var fmtShort = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
   var fmtRow = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  var fmtMonth = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric' });
   function short(k) { return fmtShort.format(keyToDate(k)); }
   var fmtNum = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
   function n(v) { return fmtNum.format(v); }
@@ -872,28 +898,101 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     } : null, 'No cardio in this period');
 
     // lift progress
+    function inPart(name, d) {
+      if (state.part === 'all') return true;
+      var known = Object.keys(EXERCISES).some(function (p) { return EXERCISES[p].some(function (x) { return sameName(x, name); }); });
+      if (known) return EXERCISES[state.part].some(function (x) { return sameName(x, name); });
+      return d.splits.some(function (x) { return (PART_ALIASES[x] || x) === state.part; });
+    }
     var counts = {}, display = {};
     keys.forEach(function (k) { days[k].exercises.forEach(function (e) {
       var nm = e.name.trim(), id = nm.toLowerCase();
-      if (nm && topSet(e)) { counts[id] = (counts[id] || 0) + 1; display[id] = nm; }
+      if (nm && topSet(e) && inPart(nm, days[k])) { counts[id] = (counts[id] || 0) + 1; display[id] = nm; }
     }); });
     var ids = Object.keys(counts).sort(function (a, b2) { return counts[b2] - counts[a] || (a < b2 ? -1 : 1); });
     if (ids.indexOf(state.exercise) < 0) state.exercise = ids[0] || null;
-    var lift = [];
-    if (state.exercise) inR.forEach(function (k) {
-      var e = days[k].exercises.filter(function (x) { return x.name.trim().toLowerCase() === state.exercise; })[0];
-      var t = e && topSet(e);
-      if (t) lift.push({ t: keyToIdx(k), y: t.kg, tip: n(t.kg) + ' kg' + (t.reps ? ' × ' + t.reps : '') + ' · volume ' + n(volume(e)) + ' kg' });
+
+    // Every session of the chosen exercise, oldest first
+    var sessions = [];
+    if (state.exercise) keys.forEach(function (k) {
+      var sets = [];
+      days[k].exercises.forEach(function (e) { if (e.name.trim().toLowerCase() === state.exercise) sets = sets.concat(e.sets.filter(function (x) { return x.kg != null || x.reps != null; })); });
+      if (sets.length) sessions.push({ key: k, sets: sets, ex: { sets: sets } });
     });
-    var liftSum = lift.length ? h('div', { class: 'chart-sum' }, 'Top set ' + n(Math.max.apply(null, lift.map(function (p) { return p.y; }))) + ' kg ' + rangeText()) : null;
-    var sel = ids.length ? h('div', { class: 'selrow' },
-      h('label', { for: 'ex-select' }, 'Exercise'),
-      h('select', { id: 'ex-select', class: 'txt', onchange: function (e) { state.exercise = e.target.value; renderCharts(); var s = $('ex-select'); if (s) s.focus(); } }, ids.map(function (id) {
-        var o = h('option', { value: id }, display[id] + ' (' + plural(counts[id], 'session') + ')'); if (id === state.exercise) o.selected = true; return o;
-      }))) : null;
-    chart('Weight lifted per exercise', liftSum, sel, lift.length ? function (el) {
-      drawPlot(el, Object.assign({ kind: 'line', zero: false, label: 'Top set chart for ' + (display[state.exercise] || ''), series: [{ name: display[state.exercise], cls: 's1', pts: lift }] }, base));
-    } : null, ids.length ? 'No data for this exercise in this period. Try a wider range' : 'Log an exercise and weight, and your progress chart appears here');
+    function bucketOf(k) {
+      if (state.bucket === 'month') return { id: k.slice(0, 7), t: keyToIdx(k.slice(0, 7) + '-01'), label: fmtMonth.format(keyToDate(k)) };
+      var i = keyToIdx(k), mon = i - ((i + 3) % 7);
+      return { id: 'w' + mon, t: mon, label: 'Week of ' + short(idxToKey(mon)) };
+    }
+    var buckets = [], byId = {};
+    sessions.forEach(function (x) {
+      var b0 = bucketOf(x.key), cur = byId[b0.id];
+      if (!cur) { cur = byId[b0.id] = { t: b0.t, label: b0.label, keys: [], sets: [], volume: 0 }; buckets.push(cur); }
+      cur.keys.push(x.key);
+      cur.sets = cur.sets.concat(x.sets);
+      cur.volume += volume(x.ex);
+    });
+    buckets.forEach(function (x, i) {
+      x.top = topSet({ sets: x.sets });
+      var prev = i ? buckets[i - 1] : null;
+      x.change = prev && x.top && prev.top ? x.top.kg - prev.top.kg : null;
+      x.first = !prev;
+    });
+    var shown = buckets.filter(function (x) { return x.top && x.keys.some(function (k) { return inR.indexOf(k) >= 0; }); });
+    var lift = shown.map(function (x) {
+      return { t: Math.max(x.t, b.start), y: x.top.kg, tip: x.label + ': ' + n(x.top.kg) + ' kg' + (x.top.reps ? ' × ' + x.top.reps : '') + ' · ' + plural(x.sets.length, 'set') };
+    });
+    function changeText(x) {
+      if (x.first) return 'First';
+      if (x.change == null) return '–';
+      if (x.change > 0) return '▲ +' + n(x.change) + ' kg';
+      if (x.change < 0) return '▼ −' + n(-x.change) + ' kg';
+      return 'Same';
+    }
+    var latest = shown[shown.length - 1];
+    var liftSum = latest ? h('div', { class: 'chart-sum' }, h('span', { class: 'hero' }, n(latest.top.kg) + ' kg'), changeText(latest) === 'First' ? null : changeText(latest) + ' from last ' + state.bucket) : null;
+    var partOptions = ['all'].concat(Object.keys(EXERCISES));
+    var filters = h('div', { class: 'sect' },
+      h('div', { class: 'selrow' },
+        h('label', { for: 'part-select' }, 'Body part'),
+        h('select', { id: 'part-select', class: 'txt', onchange: function (e) { state.part = e.target.value; state.exercise = null; renderCharts(); var el = $('part-select'); if (el) el.focus(); } }, partOptions.map(function (p) {
+          var o = h('option', { value: p }, p === 'all' ? 'All' : p); if (p === state.part) o.selected = true; return o;
+        }))),
+      ids.length ? h('div', { class: 'selrow' },
+        h('label', { for: 'ex-select' }, 'Exercise'),
+        h('select', { id: 'ex-select', class: 'txt', onchange: function (e) { state.exercise = e.target.value; renderCharts(); var el = $('ex-select'); if (el) el.focus(); } }, ids.map(function (id) {
+          var o = h('option', { value: id }, display[id] + ' (' + plural(counts[id], 'session') + ')'); if (id === state.exercise) o.selected = true; return o;
+        }))) : null,
+      h('div', { class: 'seg', role: 'group', 'aria-label': 'Group by', style: 'align-self:flex-start' }, [['week', 'Week'], ['month', 'Month']].map(function (r) {
+        return h('button', { type: 'button', 'aria-pressed': state.bucket === r[0] ? 'true' : 'false', onclick: function () { state.bucket = r[0]; renderCharts(); } }, r[1]);
+      })));
+    chart('Exercise progress', liftSum, filters, lift.length ? function (el) {
+      drawPlot(el, Object.assign({ kind: 'line', zero: false, label: 'Top weight per ' + state.bucket + ' for ' + (display[state.exercise] || ''), series: [{ name: display[state.exercise], cls: 's1', pts: lift }] }, base));
+    } : null, ids.length ? 'No data for this exercise in this period. Try a wider range' : state.part === 'all' ? 'Log an exercise and weight, and your progress appears here' : 'No ' + state.part + ' exercises logged yet');
+    if (shown.length) {
+      var perLabel = state.bucket === 'month' ? 'Month' : 'Week';
+      root.appendChild(h('div', { class: 'sect' },
+        h('p', { class: 'subhead' }, 'By ' + state.bucket),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, [perLabel, 'Sets', 'Top set', 'Volume', 'Change'].map(function (t) { return h('th', { scope: 'col' }, t); }))),
+          h('tbody', null, shown.slice().reverse().map(function (x) {
+            return h('tr', null,
+              h('td', null, x.label.replace('Week of ', '')),
+              h('td', null, x.sets.length),
+              h('td', null, n(x.top.kg) + ' kg' + (x.top.reps ? ' × ' + x.top.reps : '')),
+              h('td', null, n(x.volume) + ' kg'),
+              h('td', { class: x.change > 0 ? 'up' : null }, changeText(x)));
+          })))),
+        h('p', { class: 'subhead' }, 'Every session'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Date'), h('th', { scope: 'col', class: 'l' }, 'Weight × reps'))),
+          h('tbody', null, sessions.filter(function (x) { return inR.indexOf(x.key) >= 0; }).reverse().map(function (x) {
+            var label = fmtRow.format(keyToDate(x.key));
+            return h('tr', null,
+              h('td', null, usingDemo() ? label : h('button', { type: 'button', class: 'linkbtn', onclick: function () { setDate(x.key); setView('log'); } }, label)),
+              h('td', { class: 'l' }, x.sets.map(function (q) { return (q.kg == null ? '–' : n(q.kg)) + '×' + (q.reps == null ? '–' : q.reps); }).join(', ')));
+          }))))));
+    }
     if (focused && $(focused)) $(focused).focus();
   }
 
@@ -941,7 +1040,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       if (!tdee) { toast('Enter your TDEE in kcal'); $('plan-tdee').focus(); return; }
       if (!start) { toast('Choose a start date'); return; }
       if (end && end < start) { toast('The end date must be after the start date'); return; }
-      var data = { goal: $('plan-goal').value, tdee: tdee, target: num($('plan-target').value), start: start, end: end };
+      var data = { goal: $('plan-goal').value, tdee: tdee, target: num($('plan-target').value), goalWeight: num($('plan-weight').value), start: start, end: end };
       if (edit) Object.keys(data).forEach(function (k) { edit[k] = data[k]; });
       else { data.id = 'p' + Date.now(); state.plans.push(data); }
       editingPlan = null;
@@ -955,12 +1054,12 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     }));
     root.appendChild(h('div', { class: 'sect' },
       h('h3', null, (edit ? 'Edit period' : 'Add a period') + ' for ' + profile().label),
-      h('p', { class: 'hint' }, 'Cal deficit = TDEE − calories in. It appears in the Log tab for every date in the period.'),
+      h('p', { class: 'hint' }, 'Cal deficit = TDEE − calories in. It appears in the Log tab for every date in the period. Add a goal body weight to climb the mountain in the Goals tab.'),
       h('div', { class: 'planform' },
         box('plan-goal', 'Goal', goal),
         box('plan-tdee', 'TDEE (kcal per day)', numberInput('plan-tdee', edit ? edit.tdee : null, 'e.g. 2200')),
         box('plan-target', 'Calorie target (optional)', numberInput('plan-target', edit ? edit.target : null, 'e.g. 1800')),
-        h('div'),
+        box('plan-weight', 'Goal body weight, kg (optional)', h('input', { id: 'plan-weight', class: 'txt', type: 'number', inputmode: 'decimal', min: '0', step: '0.1', placeholder: 'e.g. 68', value: edit && edit.goalWeight != null ? edit.goalWeight : '' })),
         box('plan-start', 'Start date', h('input', { id: 'plan-start', class: 'txt', type: 'date', value: edit ? edit.start : todayKey() })),
         box('plan-end', 'End date (optional)', h('input', { id: 'plan-end', class: 'txt', type: 'date', value: edit && edit.end ? edit.end : '' }))),
       h('div', { class: 'plan-actions' },
@@ -974,7 +1073,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       list.map(function (p) {
         return h('div', { class: 'ex' },
           h('div', { class: 'plan-title' }, GOALS[p.goal] + ' · TDEE ' + n(p.tdee) + ' kcal', p === current && h('span', { class: 'pr' }, 'Now')),
-          h('div', { class: 'ex-sum' }, planDates(p) + (p.target != null ? ' · Target ' + n(p.target) + ' kcal' : '')),
+          h('div', { class: 'ex-sum' }, planDates(p) + (p.target != null ? ' · Target ' + n(p.target) + ' kcal' : '') + (p.goalWeight != null ? ' · Goal ' + n(p.goalWeight) + ' kg' : '')),
           h('div', { class: 'plan-actions' },
             h('button', { type: 'button', class: 'btn', onclick: function () { editingPlan = p.id; renderPlan(); window.scrollTo(0, 0); } }, 'Edit'),
             h('button', { type: 'button', class: 'btn', onclick: function () {
@@ -987,6 +1086,129 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       })));
   }
 
+  // ---------- goals ----------
+  function weightEntries() {
+    return Object.keys(state.days).sort().filter(function (k) { return state.days[k].weight != null; }).map(function (k) { return { key: k, w: state.days[k].weight }; });
+  }
+  // Progress from the weight at the start of the period to the goal weight, 0 to 1.
+  function climbFor(p) {
+    var all = weightEntries();
+    if (!all.length) return null;
+    var before = all.filter(function (x) { return x.key <= p.start; }).pop();
+    var startEntry = all.filter(function (x) { return x.key >= p.start; })[0] || before;
+    if (before && before.key === p.start) startEntry = before;
+    var now = all[all.length - 1];
+    if (!startEntry || now.key < startEntry.key) return null;
+    var span = p.goalWeight - startEntry.w;
+    var progress = span === 0 ? 1 : Math.max(0, Math.min(1, (now.w - startEntry.w) / span));
+    return { start: startEntry.w, now: now.w, progress: progress, left: Math.abs(p.goalWeight - now.w) };
+  }
+  function mountain(progress) {
+    var W = 360, H = 300, peak = { x: 180, y: 44 }, baseY = 288, pts = [];
+    for (var i = 0; i <= 10; i++) {
+      var t = i / 10, hw = (1 - t) * 130;
+      pts.push({ x: i === 10 ? peak.x : peak.x + (i % 2 ? hw : -hw), y: baseY - 10 - t * (baseY - 10 - peak.y) });
+    }
+    var at = progress * 10, whole = Math.floor(at), frac = at - whole;
+    var a = pts[whole], c = pts[Math.min(whole + 1, 10)];
+    var me = { x: a.x + (c.x - a.x) * frac, y: a.y + (c.y - a.y) * frac };
+    function line(list) { return list.map(function (p, i) { return (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(''); }
+    var out = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Mountain trail with 10 stations. You are ' + Math.round(progress * 100) + ' percent of the way to the summit">';
+    out += '<path class="mt" d="M12 ' + baseY + 'L' + peak.x + ' ' + peak.y + 'L348 ' + baseY + 'Z"/>';
+    out += '<path class="snow" d="M' + peak.x + ' ' + peak.y + 'L212 90L198 80L188 96L174 80L160 94L148 90Z"/>';
+    out += '<path class="trail" d="' + line(pts) + '"/>';
+    if (progress > 0) out += '<path class="done" d="' + line(pts.slice(0, whole + 1).concat(frac ? [me] : [])) + '"/>';
+    pts.forEach(function (p, i) {
+      if (i === 0) return;
+      var on = i <= whole;
+      out += '<circle class="st' + (on ? ' on' : '') + '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="9"/>';
+      out += '<text class="' + (on ? 'on' : '') + '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 3.5).toFixed(1) + '" text-anchor="middle">' + i + '</text>';
+    });
+    out += '<line class="pole" x1="' + peak.x + '" y1="' + (peak.y - 9) + '" x2="' + peak.x + '" y2="' + (peak.y - 38) + '"/>';
+    out += '<path class="flag" d="M' + peak.x + ' ' + (peak.y - 38) + 'l20 6l-20 6z"/>';
+    if (progress < 1) out += '<circle class="me" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="7"/>';
+    return out + '</svg>';
+  }
+  function onPlan(d, date) {
+    var p = planFor(date);
+    if (!p || d.calIn == null) return false;
+    var t = p.target != null ? p.target : p.tdee;
+    if (p.goal === 'cut') return d.calIn <= t;
+    if (p.goal === 'bulk') return d.calIn >= t;
+    return Math.abs(d.calIn - t) <= 100;
+  }
+  function goalStats() {
+    var keys = Object.keys(state.days).sort(), st = { days: keys.length, best: 0, workouts: 0, prs: 0, protein: 0, onPlan: 0, weighIns: 0 };
+    var run = 0, last = null, top = {};
+    keys.forEach(function (k) {
+      var d = state.days[k], i = keyToIdx(k);
+      run = last !== null && i === last + 1 ? run + 1 : 1; last = i;
+      if (run > st.best) st.best = run;
+      if (d.exercises.some(hasValues)) st.workouts++;
+      if (d.protein != null) st.protein++;
+      if (d.weight != null) st.weighIns++;
+      if (onPlan(d, k)) st.onPlan++;
+      d.exercises.forEach(function (e) {
+        var t = topSet(e), id = e.name.trim().toLowerCase();
+        if (!t || !id) return;
+        if (top[id] !== undefined && t.kg > top[id]) st.prs++;
+        if (top[id] === undefined || t.kg > top[id]) top[id] = t.kg;
+      });
+    });
+    return st;
+  }
+  function renderGoals() {
+    var root = $('goals'); root.textContent = '';
+    if (!state.loaded) return;
+    var p = planFor(todayKey()), climb = p && p.goalWeight != null ? climbFor(p) : null, summit = false;
+    var head = h('h3', null, 'The climb');
+    if (!p || p.goalWeight == null) {
+      root.appendChild(h('div', { class: 'sect' }, head,
+        h('div', { class: 'empty' }, (p ? 'Add a goal body weight to your current period' : 'Add a period with a goal body weight') + ' and your climb starts here'),
+        h('button', { type: 'button', class: 'btn primary', id: 'goals-to-plan', onclick: function () { setView('plan'); } }, 'Go to Plan')));
+    } else if (!climb) {
+      root.appendChild(h('div', { class: 'sect' }, head,
+        h('div', { class: 'empty' }, 'Log your body weight in the Log tab and your climb starts here')));
+    } else {
+      summit = climb.progress >= 1;
+      var station = Math.floor(climb.progress * 10), hill = h('div', { class: 'climb' });
+      hill.innerHTML = mountain(climb.progress);
+      root.appendChild(h('div', { class: 'sect' }, head,
+        h('div', { class: 'climb-big', id: 'climb-status' }, summit ? 'Summit reached' : 'Station ' + station + ' of 10'),
+        h('div', { class: 'chart-sum', id: 'climb-detail' }, GOALS[p.goal] + ' · Start ' + n(climb.start) + ' kg · Now ' + n(climb.now) + ' kg · Goal ' + n(p.goalWeight) + ' kg' + (summit ? '' : ' · ' + n(Math.round(climb.left * 10) / 10) + ' kg to go')),
+        hill));
+    }
+    var st = goalStats();
+    var list = [
+      ['First step', 'Log your first day', st.days, 1],
+      ['One week strong', 'Log 7 days in a row', st.best, 7],
+      ['Monthly habit', 'Log 30 days in a row', st.best, 30],
+      ['First workout', 'Log 1 workout', st.workouts, 1],
+      ['Ten workouts', 'Log 10 workouts', st.workouts, 10],
+      ['Fifty workouts', 'Log 50 workouts', st.workouts, 50],
+      ['First PR', 'Beat your top weight on any exercise', st.prs, 1],
+      ['Ten PRs', 'Beat your top weight 10 times', st.prs, 10],
+      ['Protein week', 'Log protein on 7 days', st.protein, 7],
+      ['Protein month', 'Log protein on 30 days', st.protein, 30],
+      ['On plan', 'Hit your calorie goal on 7 days', st.onPlan, 7],
+      ['Locked in', 'Hit your calorie goal on 30 days', st.onPlan, 30],
+      ['Weigh-in habit', 'Log body weight 10 times', st.weighIns, 10],
+      ['Summit', 'Reach your goal body weight', summit ? 1 : 0, 1]
+    ];
+    var earned = list.filter(function (b) { return b[2] >= b[3]; }).length;
+    root.appendChild(h('div', { class: 'sect' },
+      h('h3', { id: 'badge-count' }, 'Achievements: ' + earned + ' of ' + list.length),
+      h('div', { class: 'badges' }, list.map(function (b) {
+        var on = b[2] >= b[3];
+        return h('div', { class: 'badge' + (on ? ' on' : '') },
+          h('b', null, (on ? '★ ' : '') + b[0]),
+          h('span', null, b[1]),
+          !on && h('div', { class: 'meter', role: 'img', 'aria-label': b[2] + ' of ' + b[3] }, h('i', { style: 'width:' + Math.round(b[2] / b[3] * 100) + '%' })),
+          !on && h('span', null, b[2] + ' of ' + b[3]));
+      })),
+      h('p', { class: 'hint' }, 'Calorie goal: Cut at or under your target, Bulk at or over it, Maintain within 100 kcal. With no target set, your TDEE is used.')));
+  }
+
   // ---------- views ----------
   function setView(v) { state.view = v; applyView(); window.scrollTo(0, 0); }
   function applyView() {
@@ -995,13 +1217,15 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     $('charts').hidden = v !== 'charts';
     $('history').hidden = v !== 'history';
     $('plan').hidden = v !== 'plan';
-    ['log', 'charts', 'history', 'plan'].forEach(function (x) {
+    $('goals').hidden = v !== 'goals';
+    ['log', 'charts', 'history', 'plan', 'goals'].forEach(function (x) {
       var b = $('nav-' + x);
       if (x === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     if (v === 'charts') renderCharts();
     if (v === 'history') renderHistory();
     if (v === 'plan') renderPlan();
+    if (v === 'goals') renderGoals();
   }
   var viewTimer = null;
   function refreshReadViews() {
@@ -1009,6 +1233,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     viewTimer = setTimeout(function () {
       if (!$('charts').hidden) renderCharts();
       if (!$('history').hidden) renderHistory();
+      if (!$('goals').hidden) renderGoals();
     }, 250);
   }
   document.querySelectorAll('nav button').forEach(function (b) { b.addEventListener('click', function () { setView(b.getAttribute('data-view')); }); });
