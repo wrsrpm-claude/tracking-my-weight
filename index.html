@@ -5,18 +5,25 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500..700&family=Figtree:wght@400..600&display=swap">
 <style>
-/* Layout: one screen at a time from a bottom tab bar. A deep pine scoreboard holds today's numbers on a pale mint page; plate yellow marks what matters most. */
+/* Layout: one screen at a time from a bottom tab bar, bright and light. The whole page takes the colour of whoever is logging: pink for Noey, blue for Poom. */
 :root {
   color-scheme: light;
-  --bg: #F1F6F3; --field: #FFFFFF; --tint: #E3EFE9;
-  --ink: #12261E; --ink2: #2F4A3F; --muted: #557066;
-  --line: #DCE7E1; --axis: #B5C7BD;
-  --band: #12382E; --band-ink: #F4FAF7; --band-muted: #B4CDC2; --band-line: #3A6557; --band-field: #1C4A3D;
-  --accent: #0F7B5F; --on-accent: #FFFFFF; --gold: #FFC53D;
-  --s1: #0F7B5F; --s2: #E8582F;
+  --bg: #FFF9FB; --field: #FFFFFF; --tint: #FFE6EF;
+  --ink: #2B1E26; --ink2: #54404B; --muted: #7D5A6B;
+  --line: #F6DCE6; --axis: #EDB8CC;
+  --band: #FFF0F5; --band-ink: #2B1E26; --band-muted: #7D5A6B; --band-line: #F3C2D4; --band-field: #FFFFFF;
+  --accent: #D6336C; --on-accent: #FFFFFF; --gold: #FFC53D;
+  --s1: #D6336C; --s2: #E8850C;
   --tabbar: 66px;
   --display: "Bricolage Grotesque", "Figtree", "Leelawadee UI", system-ui, sans-serif;
   --body: "Figtree", "Leelawadee UI", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+:root[data-person="poom"] {
+  --bg: #F7FBFF; --tint: #E2F0FF;
+  --ink: #14263D; --ink2: #33475F; --muted: #506A85;
+  --line: #D8E8F8; --axis: #A9CBEF;
+  --band: #EEF6FF; --band-ink: #14263D; --band-muted: #506A85; --band-line: #BCD8F7;
+  --accent: #1769D2; --s1: #1769D2;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--body); }
@@ -24,7 +31,7 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 :focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
-.score :focus-visible { outline-color: var(--gold); }
+.score :focus-visible { outline-color: var(--accent); }
 input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
@@ -42,7 +49,7 @@ nav button[aria-current=page] { background: var(--tint); color: var(--accent); f
 
 .who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: var(--tint); border-radius: 14px; padding: 4px; }
 .who button { min-height: 42px; background: none; border: 0; border-radius: 11px; color: var(--ink2); font-weight: 600; }
-.who button[aria-pressed=true] { background: var(--band); color: var(--band-ink); }
+.who button[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
 
 .banner { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 14px; color: var(--ink2); }
 .banner b { color: var(--ink); }
@@ -56,22 +63,22 @@ nav button[aria-current=page] { background: var(--tint); color: var(--accent); f
 .datenav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .datenav h2 { margin: 0; font: 600 17px/1.3 var(--display); flex: 1 1 100%; text-wrap: balance; }
 .datenav button, .datenav input { background: var(--band-field); border: 1px solid var(--band-line); border-radius: 4px; color: var(--band-ink); min-height: 36px; padding: 4px 10px; }
-.datenav input { flex: 1 1 130px; min-width: 0; color-scheme: dark; }
+.datenav input { flex: 1 1 130px; min-width: 0; color-scheme: light; }
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .metric { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .metric label { font-size: 14px; font-weight: 500; color: var(--band-muted); }
 .bigfield { display: flex; align-items: baseline; gap: 6px; border-bottom: 2px solid var(--band-line); }
-.bigfield:focus-within { border-color: var(--gold); }
-.bigfield input { width: 100%; min-width: 0; background: none; border: 0; outline: 0; padding: 0; color: var(--band-ink); font: 600 34px/1.25 var(--display); caret-color: var(--gold); }
-.bigfield input::placeholder { color: var(--band-line); }
+.bigfield:focus-within { border-color: var(--accent); }
+.bigfield input { width: 100%; min-width: 0; background: none; border: 0; outline: 0; padding: 0; color: var(--band-ink); font: 600 34px/1.25 var(--display); caret-color: var(--accent); }
+.bigfield input::placeholder { color: var(--axis); }
 .bigfield span { font-size: 13px; color: var(--band-muted); }
 .addrow { display: flex; gap: 4px; margin-top: 4px; }
 .addrow input { flex: 1 1 0; width: 100%; min-width: 0; background: var(--band-field); border: 1px solid var(--band-line); border-radius: 4px; padding: 3px 8px; color: var(--band-ink); font-size: 16px; }
 .addrow input::placeholder { color: var(--band-muted); font-size: 13px; }
-.addrow button { flex: none; background: var(--band-field); border: 1px solid var(--band-line); border-radius: 4px; color: var(--band-ink); font-weight: 600; padding: 2px 10px; font-size: 13px; }
+.addrow button { flex: none; background: var(--band-field); border: 1px solid var(--band-line); border-radius: 4px; color: var(--accent); font-weight: 600; padding: 2px 10px; font-size: 13px; }
 .net { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; border-top: 1px solid var(--band-line); padding-top: 10px; font-size: 13px; color: var(--band-muted); }
 .net strong { font: 700 22px/1.2 var(--display); color: var(--band-ink); }
-#plan-deficit { color: var(--gold); }
+#plan-deficit { color: var(--accent); }
 
 /* workout */
 .sect h3, .chart h3 { margin: 0; font: 600 17px/1.3 var(--display); }
@@ -175,7 +182,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
 
 /* Shape */
 .brand { font-size: 26px; }
-.score { border: 0; border-radius: 20px; padding: 20px 18px; }
+.score { border: 1px solid var(--band-line); border-radius: 20px; padding: 20px 18px; }
 .datenav button, .datenav input, .addrow input, .addrow button { border-radius: 10px; }
 .ex { border-radius: 16px; box-shadow: 0 1px 3px rgba(18, 56, 46, .08); padding: 14px; }
 .chip { border-radius: 999px; }
@@ -305,6 +312,7 @@ th, td { border-bottom-color: var(--line); }
   }
   function renderWho() {
     var root = $('who'); root.textContent = ''; root.hidden = false;
+    document.documentElement.setAttribute('data-person', state.profile);
     PROFILES.forEach(function (p) {
       root.appendChild(h('button', { type: 'button', id: 'who-' + p.id, 'aria-pressed': p.id === state.profile ? 'true' : 'false', onclick: function () { switchProfile(p.id); } }, p.label));
     });
