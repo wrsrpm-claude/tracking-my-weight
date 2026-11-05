@@ -8,10 +8,10 @@
 /* Layout: one screen at a time from a bottom tab bar, bright and light. The whole page takes the colour of whoever is logging: pink for Noey, blue for Poom. */
 :root {
   color-scheme: light;
-  --bg: #FFF9FB; --field: #FFFFFF; --tint: #FFE6EF;
+  --bg: #FFFFFF; --field: #FFFFFF; --tint: #FFF3F7;
   --ink: #2B1E26; --ink2: #54404B; --muted: #7D5A6B;
-  --line: #F6DCE6; --axis: #EDB8CC;
-  --band: #FFF0F5; --band-ink: #2B1E26; --band-muted: #7D5A6B; --band-line: #F3C2D4; --band-field: #FFFFFF;
+  --line: #FAE8EF; --axis: #F0C4D4;
+  --band: #FFFFFF; --band-ink: #2B1E26; --band-muted: #7D5A6B; --band-line: #F6D3E0; --band-field: #FFFFFF;
   --accent: #D6336C; --on-accent: #FFFFFF; --gold: #FFC53D;
   --s1: #D6336C; --s2: #E8850C;
   --tabbar: 66px;
@@ -19,14 +19,14 @@
   --body: "Figtree", "Leelawadee UI", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 :root[data-person="poom"] {
-  --bg: #F7FBFF; --tint: #E2F0FF;
+  --bg: #FFFFFF; --tint: #F0F7FF;
   --ink: #14263D; --ink2: #33475F; --muted: #506A85;
-  --line: #D8E8F8; --axis: #A9CBEF;
-  --band: #EEF6FF; --band-ink: #14263D; --band-muted: #506A85; --band-line: #BCD8F7;
+  --line: #E5F0FA; --axis: #BAD6F3;
+  --band: #FFFFFF; --band-ink: #14263D; --band-muted: #506A85; --band-line: #CFE2F7;
   --accent: #1769D2; --s1: #1769D2;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--body); }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--body); }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
@@ -45,11 +45,11 @@ nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: grid; 
 nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 53px; background: none; border: 0; border-radius: 10px; padding: 5px 4px; color: var(--muted); font-size: 12px; font-weight: 500; }
 nav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav button:hover { color: var(--ink); }
-nav button[aria-current=page] { background: var(--tint); color: var(--accent); font-weight: 700; }
+nav button[aria-current=page] { color: var(--accent); font-weight: 700; }
 
 .who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: var(--tint); border-radius: 14px; padding: 4px; }
 .who button { min-height: 42px; background: none; border: 0; border-radius: 11px; color: var(--ink2); font-weight: 600; }
-.who button[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+.who button[aria-pressed=true] { background: var(--field); color: var(--accent); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
 
 .banner { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 14px; color: var(--ink2); }
 .banner b { color: var(--ink); }
@@ -88,8 +88,8 @@ nav button[aria-current=page] { background: var(--tint); color: var(--accent); f
 .chip { display: inline-flex; align-items: center; background: var(--field); border: 1px solid var(--axis); border-radius: 4px; }
 .chip button { background: none; border: 0; padding: 8px 12px; min-height: 42px; font-weight: 500; }
 .chip button.x { padding: 6px 8px 6px 0; color: var(--muted); font-weight: 400; }
-.chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.chip.on button.x { color: var(--on-accent); }
+.chip.on { background: var(--tint); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.chip.on button.x { color: var(--accent); }
 .part { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
 .part h4 { margin: 0; font: 600 14px/1.3 var(--display); }
 .addsplit { display: flex; gap: 6px; }
@@ -124,7 +124,7 @@ nav button[aria-current=page] { background: var(--tint); color: var(--accent); f
 .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 4px; overflow: hidden; }
 .seg button { background: none; border: 0; padding: 5px 12px; color: var(--ink2); font-size: 14px; }
-.seg button[aria-pressed=true] { background: var(--ink); color: var(--bg); }
+.seg button[aria-pressed=true] { background: var(--tint); color: var(--accent); font-weight: 700; }
 .chart { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; min-width: 0; }
 .chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; align-items: baseline; }
 .chart-sum { color: var(--ink2); font-size: 14px; }
@@ -181,8 +181,20 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
 .toast button { background: none; border: 0; color: inherit; font-weight: 600; padding: 0; text-decoration: underline; }
 
 /* Shape */
-.brand { font-size: 26px; }
-.score { border: 1px solid var(--band-line); border-radius: 20px; padding: 20px 18px; }
+.brand { font-size: 22px; color: var(--accent); }
+.sect h3, .chart h3, .data h3, .goals-title { font-size: 15px; color: var(--accent); }
+.datenav h2 { font-size: 15px; }
+.bigfield input { font-size: 26px; color: var(--accent); }
+.metric label { font-size: 13px; }
+.net strong { font-size: 18px; }
+.hero { font-size: 24px; color: var(--accent); }
+.part h4 { font-size: 13px; color: var(--accent); }
+.plan-title { color: var(--accent); }
+.goal-head b { color: var(--accent); }
+.chip button { min-height: 38px; padding: 6px 12px; font-size: 14px; }
+.btn { font-size: 14px; }
+.hint, .chart-sum, table { font-size: 13px; }
+.score { border: 1px solid var(--band-line); border-radius: 16px; padding: 20px 18px; }
 .datenav button, .datenav input, .addrow input, .addrow button { border-radius: 10px; }
 .ex { border-radius: 16px; box-shadow: 0 1px 3px rgba(18, 56, 46, .08); padding: 14px; }
 .chip { border-radius: 999px; }
