@@ -85,6 +85,8 @@ nav button[aria-current=page] { background: var(--tint); color: var(--ink); font
 .chip button.x { padding: 6px 8px 6px 0; color: var(--muted); font-weight: 400; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip.on button.x { color: var(--on-accent); }
+.part { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.part h4 { margin: 0; font: 600 14px/1.3 var(--display); }
 .addsplit { display: flex; gap: 6px; }
 .addsplit input { flex: 1 1 auto; min-width: 0; }
 .txt { background: var(--field); border: 1px solid var(--axis); border-radius: 4px; padding: 6px 10px; min-height: 36px; width: 100%; font-size: 16px; }
@@ -188,6 +190,19 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
   var LOCAL_KEY = 'somjod-v1';
   var DEFAULT_SPLITS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Push', 'Pull', 'Legs', 'Full Body'];
   var COMMON_EXERCISES = ['Bench Press', 'Incline Dumbbell Press', 'Chest Fly', 'Push Up', 'Overhead Press', 'Lateral Raise', 'Rear Delt Fly', 'Lat Pulldown', 'Pull Up', 'Barbell Row', 'Seated Cable Row', 'Deadlift', 'Face Pull', 'Biceps Curl', 'Hammer Curl', 'Triceps Pushdown', 'Skull Crusher', 'Squat', 'Leg Press', 'Romanian Deadlift', 'Leg Curl', 'Leg Extension', 'Calf Raise', 'Hip Thrust'];
+
+  var EXERCISES = {
+    Chest: ['Bench Press', 'Incline Bench Press', 'Incline Dumbbell Press', 'Dumbbell Bench Press', 'Chest Press Machine', 'Chest Fly', 'Cable Crossover', 'Push Up', 'Dips'],
+    Back: ['Lat Pulldown', 'Pull Up', 'Barbell Row', 'Dumbbell Row', 'Seated Cable Row', 'T-Bar Row', 'Deadlift', 'Face Pull', 'Back Extension'],
+    Shoulders: ['Overhead Press', 'Dumbbell Shoulder Press', 'Shoulder Press Machine', 'Lateral Raise', 'Front Raise', 'Rear Delt Fly', 'Face Pull', 'Shrug'],
+    Arms: ['Biceps Curl', 'Hammer Curl', 'Preacher Curl', 'Cable Curl', 'Triceps Pushdown', 'Skull Crusher', 'Overhead Triceps Extension', 'Dips'],
+    Push: ['Bench Press', 'Incline Dumbbell Press', 'Chest Fly', 'Overhead Press', 'Lateral Raise', 'Triceps Pushdown', 'Skull Crusher', 'Dips', 'Push Up'],
+    Pull: ['Lat Pulldown', 'Pull Up', 'Barbell Row', 'Seated Cable Row', 'Deadlift', 'Face Pull', 'Rear Delt Fly', 'Biceps Curl', 'Hammer Curl'],
+    Legs: ['Squat', 'Leg Press', 'Romanian Deadlift', 'Lunge', 'Bulgarian Split Squat', 'Leg Extension', 'Leg Curl', 'Hip Thrust', 'Calf Raise'],
+    'Full Body': ['Squat', 'Deadlift', 'Bench Press', 'Overhead Press', 'Barbell Row', 'Pull Up', 'Lunge', 'Push Up']
+  };
+  var PART_ALIASES = { 'อก': 'Chest', 'หลัง': 'Back', 'ไหล่': 'Shoulders', 'แขน': 'Arms', 'ขา': 'Legs' };
+  function exercisesFor(part) { return EXERCISES[PART_ALIASES[part] || part] || null; }
 
   var state = {
     days: {}, customSplits: [], demoDays: null,
@@ -458,7 +473,27 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     function add(x) { var k = x.trim().toLowerCase(); if (k && !seen[k]) { seen[k] = 1; out.push(x.trim()); } }
     Object.keys(state.days).sort().reverse().forEach(function (k) { state.days[k].exercises.forEach(function (e) { add(e.name); }); });
     COMMON_EXERCISES.forEach(add);
+    Object.keys(EXERCISES).forEach(function (p) { EXERCISES[p].forEach(add); });
     return out;
+  }
+  function toggleExercise(name) {
+    var dd = ensureDay(), found = dd.exercises.filter(function (e) { return sameName(e.name, name); })[0];
+    if (found && hasValues(found)) { toast(name + ' has numbers. Use × to delete it'); return; }
+    if (found) dd.exercises.splice(dd.exercises.indexOf(found), 1);
+    else dd.exercises.push({ name: name, sets: [{ kg: null, reps: null }] });
+    detailOpen = {};
+    touch(); renderLog();
+  }
+  function partBlock(d, part) {
+    var list = exercisesFor(part);
+    if (!list) return null;
+    return h('div', { class: 'part' },
+      h('h4', null, part + ': choose exercises'),
+      h('div', { class: 'chips', role: 'group', 'aria-label': part + ' exercises' }, list.map(function (name) {
+        var on = d.exercises.some(function (e) { return sameName(e.name, name); });
+        return h('span', { class: 'chip' + (on ? ' on' : '') },
+          h('button', { type: 'button', 'aria-pressed': on ? 'true' : 'false', onclick: function () { toggleExercise(name); } }, name));
+      })));
   }
   function renderWorkout() {
     var d = day(), allSplits = DEFAULT_SPLITS.concat(state.customSplits);
@@ -467,13 +502,18 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       var dd = ensureDay(), i = dd.splits.indexOf(s);
       if (i >= 0) {
         dd.splits.splice(i, 1);
-        var kept = dd.exercises.some(function (e) { return sameName(e.name, s) && hasValues(e); });
-        dd.exercises = dd.exercises.filter(function (e) { return !sameName(e.name, s) || hasValues(e); });
+        // A blank card goes with its part, unless another ticked part also lists that exercise.
+        var inList = function (list, name) { return (list || []).some(function (x) { return sameName(x, name); }); };
+        var belongs = function (e) {
+          return sameName(e.name, s) || (inList(exercisesFor(s), e.name) && !dd.splits.some(function (o) { return inList(exercisesFor(o), e.name); }));
+        };
+        var kept = dd.exercises.some(function (e) { return belongs(e) && hasValues(e); });
+        dd.exercises = dd.exercises.filter(function (e) { return !belongs(e) || hasValues(e); });
         detailOpen = {};
-        if (kept) toast('Kept ' + s + ' because it has numbers. Use × to delete it');
+        if (kept) toast('Kept exercises that have numbers. Use × to delete them');
       } else {
         dd.splits.push(s);
-        addCard(dd, s);
+        if (!exercisesFor(s)) addCard(dd, s);
       }
       touch(); renderLog();
     }
@@ -483,7 +523,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
     function addSplit() {
       var inp = $('new-split'), v = inp.value.trim(); if (!v) return;
       if (allSplits.indexOf(v) < 0) { state.customSplits.push(v); saveSettings(); }
-      var dd = ensureDay(); if (dd.splits.indexOf(v) < 0) { dd.splits.push(v); addCard(dd, v); }
+      var dd = ensureDay(); if (dd.splits.indexOf(v) < 0) { dd.splits.push(v); if (!exercisesFor(v)) addCard(dd, v); }
       touch(); renderLog();
     }
     function removeSplit(s) {
@@ -511,6 +551,7 @@ td.l { white-space: normal; min-width: 170px; color: var(--ink2); }
       h('div', { class: 'addsplit' },
         h('input', { id: 'new-split', class: 'txt', placeholder: 'Add your own, e.g. Upper, Yoga', 'aria-label': 'Workout type name', onkeydown: function (e) { if (e.key === 'Enter') { e.preventDefault(); addSplit(); } } }),
         h('button', { type: 'button', class: 'btn', onclick: addSplit }, 'Add')),
+      d.splits.map(function (p) { return partBlock(d, p); }),
       copy && h('button', { type: 'button', class: 'btn copy', onclick: function () {
         ensureDay().exercises = JSON.parse(JSON.stringify(copy.exercises.filter(hasValues)));
         touch(); renderLog();
