@@ -965,17 +965,18 @@ button:active:not(:disabled) { opacity: .55; }
     var df = inR.map(function (k) {
       var v = deficitFor(days[k], k); if (v == null) return null;
       var d = days[k];
-      return { t: keyToIdx(k), y: v, key: k, cls: v >= 0 ? 's1' : 's2',
-        tip: (v > 0 ? 'Deficit ' + n(v) + ' kcal' : v < 0 ? 'Surplus ' + n(-v) + ' kcal' : 'Right at TDEE, 0 kcal') + ' · In ' + n(d.calIn) + (d.calOut ? ' · Out ' + n(d.calOut) : '') };
+      // Plotted as calories in minus calories used: a deficit is below zero, a surplus above
+      return { t: keyToIdx(k), y: -v, key: k, cls: v >= 0 ? 's1' : 's2',
+        tip: (v > 0 ? 'Deficit ' + signed(-v) + ' kcal' : v < 0 ? 'Surplus ' + signed(-v) + ' kcal' : 'Right at TDEE, 0 kcal') + ' · In ' + n(d.calIn) + (d.calOut ? ' · Out ' + n(d.calOut) : '') };
     }).filter(Boolean);
     var dSum = null;
     if (df.length) {
       var mean = Math.round(avg(df)), total = df.reduce(function (a, p) { return a + p.y; }, 0);
       dSum = h('div', { class: 'chart-sum' },
-        h('span', { class: 'hero' }, (mean >= 0 ? 'Deficit ' : 'Surplus ') + n(Math.abs(mean)) + ' kcal'),
-        ' a day on average · ' + (total >= 0 ? 'deficit ' : 'surplus ') + n(Math.abs(total)) + ' kcal in total over ' + plural(df.length, 'day'));
+        h('span', { class: 'hero' }, signed(mean) + ' kcal'),
+        ' a day on average (' + (mean < 0 ? 'deficit' : mean > 0 ? 'surplus' : 'even') + ') · ' + signed(total) + ' kcal in total over ' + plural(df.length, 'day'));
     }
-    var dLegend = h('div', { class: 'legend' }, h('span', null, h('i', { class: 's1-b' }), 'Deficit'), h('span', null, h('i', { class: 's2-b' }), 'Surplus'));
+    var dLegend = h('div', { class: 'legend' }, h('span', null, h('i', { class: 's1-b' }), 'Deficit (−)'), h('span', null, h('i', { class: 's2-b' }), 'Surplus (+)'));
     chart('Calorie deficit / surplus', dSum, df.length ? dLegend : null, df.length ? function (el) {
       drawPlot(el, Object.assign({ kind: 'bar', zero: true, height: 190, label: 'Daily calorie deficit and surplus chart', series: [{ name: 'Deficit', cls: 's1', pts: df }] }, base));
     } : null, state.plans.length ? 'No calories in this period' : 'Set your TDEE in the Plan tab to see your daily deficit or surplus');
