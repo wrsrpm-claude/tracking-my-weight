@@ -840,7 +840,10 @@ button:active:not(:disabled) { opacity: .55; }
       var zeroY = Y(Math.max(y0, Math.min(0, y1)));
       cfg.series[0].pts.forEach(function (p) {
         var x = X(p.t) - bw / 2, cls = (p.cls || cfg.series[0].cls) + '-f';
-        if (p.y >= 0) {
+        if (p.y === 0 && cfg.zero) {
+          // A day exactly on target still shows, as a short mark on the zero line
+          s += '<rect class="' + cls + '" x="' + x + '" y="' + (zeroY - 2) + '" width="' + bw + '" height="4" rx="2"/>';
+        } else if (p.y >= 0) {
           var top = Y(p.y), bot = cfg.zero ? zeroY : Y(y0), rr = Math.min(r, bot - top);
           s += '<path class="' + cls + '" d="M' + x + ' ' + bot + 'V' + (top + rr) + 'Q' + x + ' ' + top + ' ' + (x + rr) + ' ' + top + 'H' + (x + bw - rr) + 'Q' + (x + bw) + ' ' + top + ' ' + (x + bw) + ' ' + (top + rr) + 'V' + bot + 'Z"/>';
         } else {
@@ -963,7 +966,7 @@ button:active:not(:disabled) { opacity: .55; }
       var v = deficitFor(days[k], k); if (v == null) return null;
       var d = days[k];
       return { t: keyToIdx(k), y: v, key: k, cls: v >= 0 ? 's1' : 's2',
-        tip: (v > 0 ? 'Deficit ' + n(v) : v < 0 ? 'Surplus ' + n(-v) : 'Even') + ' kcal · In ' + n(d.calIn) + (d.calOut ? ' · Out ' + n(d.calOut) : '') };
+        tip: (v > 0 ? 'Deficit ' + n(v) + ' kcal' : v < 0 ? 'Surplus ' + n(-v) + ' kcal' : 'Right at TDEE, 0 kcal') + ' · In ' + n(d.calIn) + (d.calOut ? ' · Out ' + n(d.calOut) : '') };
     }).filter(Boolean);
     var dSum = null;
     if (df.length) {
