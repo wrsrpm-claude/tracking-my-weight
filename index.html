@@ -819,14 +819,14 @@ button:active:not(:disabled) { opacity: .55; }
     var multi = cfg.series.length > 1;
     var m = { l: 42, r: dl ? (multi ? 82 : 56) : 10, t: 12, b: 24 };
     var all = []; cfg.series.forEach(function (s) { s.pts.forEach(function (p) { all.push(p.y); }); });
-    var lo = cfg.zero ? 0 : Math.min.apply(null, all), hi = Math.max.apply(null, all);
+    var lo = cfg.zero ? Math.min(0, Math.min.apply(null, all)) : Math.min.apply(null, all), hi = cfg.zero ? Math.max(0, Math.max.apply(null, all)) : Math.max.apply(null, all);
     var ticks = niceTicks(lo, hi, 4), y0 = ticks[0], y1 = ticks[ticks.length - 1];
     var start = cfg.start - .5, end = cfg.end + .5;
     function X(t) { return m.l + (t - start) / (end - start) * (W - m.l - m.r); }
     function Y(v) { return H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b); }
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" tabindex="0" aria-label="' + esc(cfg.label) + '. Use the left and right arrow keys to read each day">';
     ticks.forEach(function (v, i) {
-      s += '<line class="' + (i === 0 ? 'base-l' : 'grid-l') + '" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>';
+      s += '<line class="' + (i === 0 || (v === 0 && cfg.zero) ? 'base-l' : 'grid-l') + '" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>';
       s += '<text x="' + (m.l - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + n(v) + '</text>';
     });
     var xCount = W < 460 ? 3 : 5, span = cfg.end - cfg.start;
@@ -837,9 +837,16 @@ button:active:not(:disabled) { opacity: .55; }
     }
     if (cfg.kind === 'bar') {
       var band = (W - m.l - m.r) / (end - start), bw = Math.max(2, Math.min(band - 2, 18)), r = Math.min(4, bw / 2);
+      var zeroY = Y(Math.max(y0, Math.min(0, y1)));
       cfg.series[0].pts.forEach(function (p) {
-        var x = X(p.t) - bw / 2, top = Y(p.y), bot = Y(y0), rr = Math.min(r, bot - top);
-        s += '<path class="' + cfg.series[0].cls + '-f" d="M' + x + ' ' + bot + 'V' + (top + rr) + 'Q' + x + ' ' + top + ' ' + (x + rr) + ' ' + top + 'H' + (x + bw - rr) + 'Q' + (x + bw) + ' ' + top + ' ' + (x + bw) + ' ' + (top + rr) + 'V' + bot + 'Z"/>';
+        var x = X(p.t) - bw / 2, cls = (p.cls || cfg.series[0].cls) + '-f';
+        if (p.y >= 0) {
+          var top = Y(p.y), bot = cfg.zero ? zeroY : Y(y0), rr = Math.min(r, bot - top);
+          s += '<path class="' + cls + '" d="M' + x + ' ' + bot + 'V' + (top + rr) + 'Q' + x + ' ' + top + ' ' + (x + rr) + ' ' + top + 'H' + (x + bw - rr) + 'Q' + (x + bw) + ' ' + top + ' ' + (x + bw) + ' ' + (top + rr) + 'V' + bot + 'Z"/>';
+        } else {
+          var low = Y(p.y), rd = Math.min(r, low - zeroY);
+          s += '<path class="' + cls + '" d="M' + x + ' ' + zeroY + 'V' + (low - rd) + 'Q' + x + ' ' + low + ' ' + (x + rd) + ' ' + low + 'H' + (x + bw - rd) + 'Q' + (x + bw) + ' ' + low + ' ' + (x + bw) + ' ' + (low - rd) + 'V' + zeroY + 'Z"/>';
+        }
       });
     } else {
       var labels = [];
@@ -950,15 +957,25 @@ button:active:not(:disabled) { opacity: .55; }
     } : null, 'No body weight in this period. Enter it in the log and the chart updates right away');
 
     // calories
-    var ci = pts('calIn'), co = pts('calOut');
-    ci.forEach(function (p) { p.tip = 'In ' + n(p.y) + ' kcal'; });
-    co.forEach(function (p) { p.tip = 'Out ' + n(p.y) + ' kcal'; });
     function avg(a) { return a.reduce(function (s, p) { return s + p.y; }, 0) / a.length; }
-    var cSum = (ci.length || co.length) ? h('div', { class: 'chart-sum' }, 'Daily average' + (ci.length ? ' in ' + n(Math.round(avg(ci))) : '') + (co.length ? ' · out ' + n(Math.round(avg(co))) : '') + ' kcal') : null;
-    var legend = h('div', { class: 'legend' }, h('span', null, h('i', { class: 's1-b' }), 'In'), h('span', null, h('i', { class: 's2-b' }), 'Out'));
-    chart('Calories in and out', cSum, (ci.length || co.length) ? legend : null, (ci.length || co.length) ? function (el) {
-      drawPlot(el, Object.assign({ kind: 'line', zero: true, label: 'Calories in and out chart', series: [{ name: 'In', cls: 's1', pts: ci }, { name: 'Out', cls: 's2', pts: co }] }, base));
-    } : null, 'No calories in this period');
+    // Deficit = TDEE + calories out − calories in, the same number as on the Log page
+    var df = inR.map(function (k) {
+      var v = deficitFor(days[k], k); if (v == null) return null;
+      var d = days[k];
+      return { t: keyToIdx(k), y: v, key: k, cls: v >= 0 ? 's1' : 's2',
+        tip: (v > 0 ? 'Deficit ' + n(v) : v < 0 ? 'Surplus ' + n(-v) : 'Even') + ' kcal · In ' + n(d.calIn) + (d.calOut ? ' · Out ' + n(d.calOut) : '') };
+    }).filter(Boolean);
+    var dSum = null;
+    if (df.length) {
+      var mean = Math.round(avg(df)), total = df.reduce(function (a, p) { return a + p.y; }, 0);
+      dSum = h('div', { class: 'chart-sum' },
+        h('span', { class: 'hero' }, (mean >= 0 ? 'Deficit ' : 'Surplus ') + n(Math.abs(mean)) + ' kcal'),
+        ' a day on average · ' + (total >= 0 ? 'deficit ' : 'surplus ') + n(Math.abs(total)) + ' kcal in total over ' + plural(df.length, 'day'));
+    }
+    var dLegend = h('div', { class: 'legend' }, h('span', null, h('i', { class: 's1-b' }), 'Deficit'), h('span', null, h('i', { class: 's2-b' }), 'Surplus'));
+    chart('Calorie deficit / surplus', dSum, df.length ? dLegend : null, df.length ? function (el) {
+      drawPlot(el, Object.assign({ kind: 'bar', zero: true, height: 190, label: 'Daily calorie deficit and surplus chart', series: [{ name: 'Deficit', cls: 's1', pts: df }] }, base));
+    } : null, state.plans.length ? 'No calories in this period' : 'Set your TDEE in the Plan tab to see your daily deficit or surplus');
 
     // protein
     var pr = pts('protein').filter(function (p) { return p.y > 0; });
